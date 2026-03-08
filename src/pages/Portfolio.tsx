@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Plus, BarChart2, Wallet } from "lucide-react";
+import { Brain, Plus, BarChart2, Wallet, Crown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePortfolio } from "@/hooks/usePortfolio";
+import { useSubscription } from "@/hooks/useSubscription";
 import { PortfolioChart } from "@/components/PortfolioChart";
 import { PortfolioTable } from "@/components/PortfolioTable";
 import { PortfolioSummary } from "@/components/PortfolioSummary";
 import { AddHoldingModal } from "@/components/AddHoldingModal";
 import { AuthModal } from "@/components/AuthModal";
 import { UserMenu } from "@/components/UserMenu";
+import { PricingModal } from "@/components/PricingModal";
 
 export interface Holding {
   id: string;
@@ -24,8 +26,18 @@ export interface Holding {
 const Portfolio = () => {
   const { user, loading: authLoading } = useAuth();
   const { holdings, loading, addHolding, removeHolding } = usePortfolio();
+  const { isPro } = useSubscription();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [showPricing, setShowPricing] = useState(false);
+
+  const handleAddClick = () => {
+    if (!isPro) {
+      setShowPricing(true);
+    } else {
+      setShowAddModal(true);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -50,7 +62,7 @@ const Portfolio = () => {
           {user ? (
             <>
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={handleAddClick}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
               >
                 <Plus className="w-4 h-4" /> 종목 추가
@@ -78,6 +90,23 @@ const Portfolio = () => {
               className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
             >
               로그인하기
+            </button>
+          </div>
+        ) : !isPro && !loading ? (
+          /* Free 유저 - 포트폴리오 DB 저장 차단 */
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <Crown className="w-8 h-8 text-primary" />
+            </div>
+            <div className="text-center">
+              <p className="font-semibold mb-1">포트폴리오는 Pro 전용 기능입니다</p>
+              <p className="text-muted-foreground text-sm">월 ₩4,900으로 포트폴리오 클라우드 저장 및 모든 Pro 기능을 사용하세요</p>
+            </div>
+            <button
+              onClick={() => setShowPricing(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
+            >
+              <Crown className="w-4 h-4" /> Pro로 업그레이드
             </button>
           </div>
         ) : loading ? (
@@ -123,6 +152,7 @@ const Portfolio = () => {
           />
         )}
         {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+        {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
       </AnimatePresence>
     </div>
   );
