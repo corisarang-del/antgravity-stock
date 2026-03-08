@@ -1,5 +1,7 @@
 import { motion } from "framer-motion";
-import { BarChart2, DollarSign, Activity, TrendingUp, TrendingDown } from "lucide-react";
+import { BarChart2, DollarSign, Activity, TrendingUp, TrendingDown, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { STOCK_FINANCIALS } from "@/data/stockData";
 
 interface StockHeaderProps {
   symbol: string;
@@ -12,6 +14,8 @@ interface StockHeaderProps {
 
 export function StockHeader({ symbol, name, price, change, changePct, sector }: StockHeaderProps) {
   const isGain = changePct >= 0;
+  const navigate = useNavigate();
+  const fin = STOCK_FINANCIALS[symbol];
 
   return (
     <motion.div
@@ -30,31 +34,40 @@ export function StockHeader({ symbol, name, price, change, changePct, sector }: 
           </div>
           <div className="text-muted-foreground text-sm">{name}</div>
         </div>
-        <div className="text-right">
-          <motion.div
-            key={price}
-            initial={{ opacity: 0.5, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-3xl font-bold font-mono"
-          >
-            {price.toLocaleString()}
-          </motion.div>
-          <div className={`flex items-center justify-end gap-1.5 mt-1 ${isGain ? "gain-text" : "loss-text"}`}>
-            {isGain ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-            <span className="font-mono font-semibold">
-              {isGain ? "+" : ""}{change.toLocaleString()}
-            </span>
-            <span className="font-mono text-sm">
-              ({isGain ? "+" : ""}{changePct.toFixed(2)}%)
-            </span>
+        <div className="flex items-start gap-4">
+          <div className="text-right">
+            <motion.div
+              key={price}
+              initial={{ opacity: 0.5, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-3xl font-bold font-mono"
+            >
+              {price.toLocaleString()}
+            </motion.div>
+            <div className={`flex items-center justify-end gap-1.5 mt-1 ${isGain ? "gain-text" : "loss-text"}`}>
+              {isGain ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              <span className="font-mono font-semibold">
+                {isGain ? "+" : ""}{change.toLocaleString()}
+              </span>
+              <span className="font-mono text-sm">
+                ({isGain ? "+" : ""}{changePct.toFixed(2)}%)
+              </span>
+            </div>
           </div>
+          <button
+            onClick={() => navigate(`/stock/${symbol}`)}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors shrink-0 mt-1"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            상세 분석
+          </button>
         </div>
       </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border">
         {[
-          { icon: <DollarSign className="w-3.5 h-3.5" />, label: "시가총액", value: "2.94T" },
+          { icon: <DollarSign className="w-3.5 h-3.5" />, label: "시가총액", value: fin?.marketCap ?? "N/A" },
           { icon: <BarChart2 className="w-3.5 h-3.5" />, label: "거래량", value: "58.2M" },
           { icon: <Activity className="w-3.5 h-3.5" />, label: "52주 범위", value: `${(price * 0.72).toFixed(0)} - ${(price * 1.18).toFixed(0)}` },
         ].map((stat) => (
