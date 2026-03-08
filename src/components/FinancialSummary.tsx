@@ -1,5 +1,14 @@
 import { motion } from "framer-motion";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 import { StockFinancials } from "@/data/stockData";
 import { DollarSign, TrendingUp, BarChart2, Percent } from "lucide-react";
 
