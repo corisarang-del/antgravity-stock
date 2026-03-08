@@ -162,11 +162,9 @@ export function FinancialSummary({ financials, symbol }: FinancialSummaryProps) 
   );
 }
 
-// Small helper to avoid importing from recharts multiple times
+// Small helper
 function CartesianGridCustom() {
   return (
-    <CartesianGridPrimitive strokeDasharray="3 3" stroke="hsl(222, 30%, 18%)" vertical={false} />
+    <CartesianGrid strokeDasharray="3 3" stroke="hsl(222, 30%, 18%)" vertical={false} />
   );
 }
-
-import { CartesianGrid as CartesianGridPrimitive } from "recharts";
