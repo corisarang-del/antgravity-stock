@@ -13,10 +13,12 @@ import { StockHeader } from "@/components/StockHeader";
 import { PredictionPanel } from "@/components/PredictionPanel";
 
 const Index = () => {
+  const { user } = useAuth();
   const [selectedSymbol, setSelectedSymbol] = useState("NVDA");
   const [search, setSearch] = useState("");
   const [timeframe, setTimeframe] = useState("60");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
 
   const stock = STOCKS.find((s) => s.symbol === selectedSymbol) || STOCKS[0];
   const chartData = generateChartData(stock.price, parseInt(timeframe));
@@ -57,6 +59,16 @@ const Index = () => {
               <TrendingUp className="w-4 h-4" /> 포트폴리오
             </Link>
           </div>
+          {user ? (
+            <UserMenu />
+          ) : (
+            <button
+              onClick={() => setShowAuth(true)}
+              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              로그인
+            </button>
+          )}
           <button
             className="md:hidden text-muted-foreground"
             onClick={() => setSidebarOpen(!sidebarOpen)}
