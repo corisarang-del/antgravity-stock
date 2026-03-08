@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Brain, BarChart2, TrendingUp, Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { STOCKS, generateChartData } from "@/data/stockData";
+import { useAuth } from "@/contexts/AuthContext";
+import { AuthModal } from "@/components/AuthModal";
+import { UserMenu } from "@/components/UserMenu";
 import { MarketTicker, MarketOverview } from "@/components/MarketOverview";
 import { StockList } from "@/components/StockList";
 import { StockChart } from "@/components/StockChart";
