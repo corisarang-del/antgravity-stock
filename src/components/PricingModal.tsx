@@ -44,7 +44,7 @@ export function PricingModal({ onClose }: Props) {
 
     try {
       // 토스페이먼츠 빌링키 인증 요청
-      const { loadTossPayments } = await import("@tosspayments/tosspayments-js");
+      const { loadTossPayments } = await import("@tosspayments/tosspayments-sdk");
       const tossPayments = await loadTossPayments(TOSS_CLIENT_KEY);
       const payment = tossPayments.payment({ customerKey: user.id });
 
