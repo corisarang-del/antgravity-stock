@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Brain, BarChart2, TrendingUp, Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { STOCKS, generateChartData } from "@/data/stockData";
+import { useAuth } from "@/contexts/AuthContext";
+import { AuthModal } from "@/components/AuthModal";
+import { UserMenu } from "@/components/UserMenu";
 import { MarketTicker, MarketOverview } from "@/components/MarketOverview";
 import { StockList } from "@/components/StockList";
 import { StockChart } from "@/components/StockChart";
@@ -10,10 +13,12 @@ import { StockHeader } from "@/components/StockHeader";
 import { PredictionPanel } from "@/components/PredictionPanel";
 
 const Index = () => {
+  const { user } = useAuth();
   const [selectedSymbol, setSelectedSymbol] = useState("NVDA");
   const [search, setSearch] = useState("");
   const [timeframe, setTimeframe] = useState("60");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
 
   const stock = STOCKS.find((s) => s.symbol === selectedSymbol) || STOCKS[0];
   const chartData = generateChartData(stock.price, parseInt(timeframe));
@@ -54,6 +59,16 @@ const Index = () => {
               <TrendingUp className="w-4 h-4" /> 포트폴리오
             </Link>
           </div>
+          {user ? (
+            <UserMenu />
+          ) : (
+            <button
+              onClick={() => setShowAuth(true)}
+              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              로그인
+            </button>
+          )}
           <button
             className="md:hidden text-muted-foreground"
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -180,6 +195,10 @@ const Index = () => {
           symbol={stock.symbol}
         />
       </div>
+
+      <AnimatePresence>
+        {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      </AnimatePresence>
     </div>
   );
 };

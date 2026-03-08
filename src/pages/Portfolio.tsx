@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Plus, Trash2, TrendingUp, TrendingDown, BarChart2, Wallet, X } from "lucide-react";
+import { Brain, Plus, BarChart2, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
-import { STOCKS } from "@/data/stockData";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePortfolio } from "@/hooks/usePortfolio";
 import { PortfolioChart } from "@/components/PortfolioChart";
 import { PortfolioTable } from "@/components/PortfolioTable";
 import { PortfolioSummary } from "@/components/PortfolioSummary";
 import { AddHoldingModal } from "@/components/AddHoldingModal";
+import { AuthModal } from "@/components/AuthModal";
+import { UserMenu } from "@/components/UserMenu";
 
 export interface Holding {
   id: string;
@@ -18,38 +21,11 @@ export interface Holding {
   sector: string;
 }
 
-function getDefaultHoldings(): Holding[] {
-  return [
-    { id: "1", symbol: "NVDA", name: "NVIDIA Corp.", quantity: 10, avgPrice: 620, currentPrice: 875.35, sector: "Tech" },
-    { id: "2", symbol: "AAPL", name: "Apple Inc.", quantity: 25, avgPrice: 165, currentPrice: 189.84, sector: "Tech" },
-    { id: "3", symbol: "TSLA", name: "Tesla Inc.", quantity: 15, avgPrice: 280, currentPrice: 248.50, sector: "EV" },
-    { id: "4", symbol: "MSFT", name: "Microsoft Corp.", quantity: 8, avgPrice: 370, currentPrice: 415.26, sector: "Tech" },
-    { id: "5", symbol: "005930", name: "삼성전자", quantity: 50, avgPrice: 70000, currentPrice: 74800, sector: "반도체" },
-  ];
-}
-
 const Portfolio = () => {
-  const [holdings, setHoldings] = useState<Holding[]>(getDefaultHoldings);
+  const { user, loading: authLoading } = useAuth();
+  const { holdings, loading, addHolding, removeHolding } = usePortfolio();
   const [showAddModal, setShowAddModal] = useState(false);
-
-  const addHolding = (holding: Omit<Holding, "id" | "currentPrice" | "name" | "sector">) => {
-    const stock = STOCKS.find((s) => s.symbol === holding.symbol);
-    if (!stock) return;
-    const newHolding: Holding = {
-      id: Date.now().toString(),
-      symbol: holding.symbol,
-      name: stock.name,
-      quantity: holding.quantity,
-      avgPrice: holding.avgPrice,
-      currentPrice: stock.price,
-      sector: stock.sector,
-    };
-    setHoldings((prev) => [...prev, newHolding]);
-  };
-
-  const removeHolding = (id: string) => {
-    setHoldings((prev) => prev.filter((h) => h.id !== id));
-  };
+  const [showAuth, setShowAuth] = useState(false);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -71,52 +47,74 @@ const Portfolio = () => {
           <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
             <BarChart2 className="w-4 h-4" /> 마켓
           </Link>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> 종목 추가
-          </button>
+          {user ? (
+            <>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-4 h-4" /> 종목 추가
+              </button>
+              <UserMenu />
+            </>
+          ) : (
+            <button
+              onClick={() => setShowAuth(true)}
+              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              로그인
+            </button>
+          )}
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full">
-        {/* Summary Cards */}
-        <PortfolioSummary holdings={holdings} />
-
-        {/* Charts + Table */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Pie Chart */}
-          <div className="lg:col-span-1">
-            <div className="glass rounded-xl p-4 h-full">
-              <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-4">자산 배분</div>
-              <PortfolioChart holdings={holdings} />
-            </div>
+        {!user && !authLoading ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <Wallet className="w-12 h-12 text-primary/30" />
+            <p className="text-muted-foreground text-sm">로그인하면 포트폴리오를 저장하고 관리할 수 있습니다</p>
+            <button
+              onClick={() => setShowAuth(true)}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              로그인하기
+            </button>
           </div>
+        ) : loading ? (
+          <div className="flex items-center justify-center py-24 text-muted-foreground text-sm">불러오는 중...</div>
+        ) : (
+          <>
+            {/* Summary Cards */}
+            <PortfolioSummary holdings={holdings} />
 
-          {/* Holdings Table */}
-          <div className="lg:col-span-2">
-            <div className="glass rounded-xl p-4 h-full">
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">보유 종목</div>
-                <span className="text-xs text-muted-foreground font-mono">{holdings.length}개 종목</span>
+            {/* Charts + Table */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-1">
+                <div className="glass rounded-xl p-4 h-full">
+                  <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-4">자산 배분</div>
+                  <PortfolioChart holdings={holdings} />
+                </div>
               </div>
-              <PortfolioTable
-                holdings={holdings}
-                onRemove={removeHolding}
-              />
+              <div className="lg:col-span-2">
+                <div className="glass rounded-xl p-4 h-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">보유 종목</div>
+                    <span className="text-xs text-muted-foreground font-mono">{holdings.length}개 종목</span>
+                  </div>
+                  <PortfolioTable holdings={holdings} onRemove={removeHolding} />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Return Bar Chart */}
-        <div className="glass rounded-xl p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-4">종목별 수익률</div>
-          <ReturnBars holdings={holdings} />
-        </div>
+            {/* Return Bars */}
+            <div className="glass rounded-xl p-4">
+              <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-4">종목별 수익률</div>
+              <ReturnBars holdings={holdings} />
+            </div>
+          </>
+        )}
       </main>
 
-      {/* Add Modal */}
       <AnimatePresence>
         {showAddModal && (
           <AddHoldingModal
@@ -124,20 +122,19 @@ const Portfolio = () => {
             onAdd={(h) => { addHolding(h); setShowAddModal(false); }}
           />
         )}
+        {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       </AnimatePresence>
     </div>
   );
 };
 
 function ReturnBars({ holdings }: { holdings: Holding[] }) {
-  if (holdings.length === 0) return <div className="text-center text-muted-foreground py-8 text-sm">보유 종목이 없습니다</div>;
+  if (holdings.length === 0)
+    return <div className="text-center text-muted-foreground py-8 text-sm">보유 종목이 없습니다</div>;
 
-  const items = holdings.map((h) => ({
-    symbol: h.symbol,
-    name: h.name,
-    returnPct: ((h.currentPrice - h.avgPrice) / h.avgPrice) * 100,
-  })).sort((a, b) => b.returnPct - a.returnPct);
-
+  const items = holdings
+    .map((h) => ({ symbol: h.symbol, returnPct: ((h.currentPrice - h.avgPrice) / h.avgPrice) * 100 }))
+    .sort((a, b) => b.returnPct - a.returnPct);
   const maxAbs = Math.max(...items.map((i) => Math.abs(i.returnPct)), 1);
 
   return (
@@ -146,16 +143,10 @@ function ReturnBars({ holdings }: { holdings: Holding[] }) {
         const isGain = item.returnPct >= 0;
         const barWidth = (Math.abs(item.returnPct) / maxAbs) * 100;
         return (
-          <motion.div
-            key={item.symbol}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: idx * 0.05 }}
-            className="flex items-center gap-3"
-          >
+          <motion.div key={item.symbol} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05 }} className="flex items-center gap-3">
             <div className="w-20 text-xs font-mono text-right text-muted-foreground shrink-0">{item.symbol}</div>
             <div className="flex-1 flex items-center gap-2">
-              <div className="flex-1 bg-secondary rounded-full h-5 overflow-hidden relative">
+              <div className="flex-1 bg-secondary rounded-full h-5 overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${barWidth}%` }}
