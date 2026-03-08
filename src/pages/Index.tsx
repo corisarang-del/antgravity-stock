@@ -50,9 +50,9 @@ const Index = () => {
             <button className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
               <BarChart2 className="w-4 h-4" /> 마켓
             </button>
-            <button className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
+            <Link to="/portfolio" className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
               <TrendingUp className="w-4 h-4" /> 포트폴리오
-            </button>
+            </Link>
           </div>
           <button
             className="md:hidden text-muted-foreground"
