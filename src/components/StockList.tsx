@@ -11,6 +11,7 @@ interface StockListProps {
 }
 
 export function StockList({ selectedSymbol, onSelect, search, onSearchChange }: StockListProps) {
+  const navigate = useNavigate();
   const filtered = STOCKS.filter(
     (s) =>
       s.symbol.toLowerCase().includes(search.toLowerCase()) ||
@@ -40,36 +41,50 @@ export function StockList({ selectedSymbol, onSelect, search, onSearchChange }: 
       </div>
       <div className="flex-1 overflow-y-auto scrollbar-hide">
         {filtered.map((stock, i) => (
-          <motion.button
+          <motion.div
             key={stock.symbol}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.04 }}
-            onClick={() => onSelect(stock.symbol)}
-            className={`w-full text-left px-4 py-3 border-b border-border/50 hover:bg-secondary/60 transition-all ${
+            className={`group border-b border-border/50 transition-all ${
               selectedSymbol === stock.symbol ? "bg-primary/10 border-l-2 border-l-primary" : ""
             }`}
           >
-            <div className="flex items-center justify-between mb-1">
-              <span className="font-semibold text-sm">{stock.symbol}</span>
-              <span className={`text-xs px-1.5 py-0.5 rounded border font-mono font-semibold ${getSignalColor(stock.signal)}`}>
-                {stock.signal}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground truncate max-w-[100px]">{stock.name}</span>
-              <div className="flex items-center gap-1">
-                {stock.changePct >= 0 ? (
-                  <TrendingUp className="w-3 h-3 gain-text" />
-                ) : (
-                  <TrendingDown className="w-3 h-3 loss-text" />
-                )}
-                <span className={`text-xs font-mono font-semibold ${stock.changePct >= 0 ? "gain-text" : "loss-text"}`}>
-                  {stock.changePct >= 0 ? "+" : ""}{stock.changePct.toFixed(2)}%
+            <button
+              onClick={() => onSelect(stock.symbol)}
+              className="w-full text-left px-4 py-3 hover:bg-secondary/60 transition-all"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-semibold text-sm">{stock.symbol}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded border font-mono font-semibold ${getSignalColor(stock.signal)}`}>
+                  {stock.signal}
                 </span>
               </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground truncate max-w-[100px]">{stock.name}</span>
+                <div className="flex items-center gap-1">
+                  {stock.changePct >= 0 ? (
+                    <TrendingUp className="w-3 h-3 gain-text" />
+                  ) : (
+                    <TrendingDown className="w-3 h-3 loss-text" />
+                  )}
+                  <span className={`text-xs font-mono font-semibold ${stock.changePct >= 0 ? "gain-text" : "loss-text"}`}>
+                    {stock.changePct >= 0 ? "+" : ""}{stock.changePct.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            </button>
+            {/* Detail page link */}
+            <div className="px-4 pb-2 opacity-0 group-hover:opacity-100 transition-opacity -mt-1">
+              <button
+                onClick={() => navigate(`/stock/${stock.symbol}`)}
+                className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+              >
+                <ExternalLink className="w-3 h-3" />
+                상세 분석 보기
+              </button>
             </div>
-          </motion.button>
+          </motion.div>
         ))}
       </div>
     </div>
