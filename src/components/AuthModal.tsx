@@ -10,13 +10,11 @@ interface Props {
 }
 
 export function AuthModal({ onClose, defaultTab = "login" }: Props) {
-  const [tab, setTab] = useState<"login" | "signup">(defaultTab);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const handleGoogle = async () => {
     setLoading(true);
@@ -35,29 +33,17 @@ export function AuthModal({ onClose, defaultTab = "login" }: Props) {
       provider: "kakao" as any,
       options: { redirectTo: window.location.origin },
     });
-    if (error) setError("카카오 로그인 실패: Supabase 대시보드에서 카카오 OAuth를 먼저 설정해주세요.");
+    if (error) setError("카카오 로그인 실패: 카카오 OAuth 설정을 확인해주세요.");
     setLoading(false);
   };
 
-  const handleEmailAuth = async (e: React.FormEvent) => {
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setSuccess(null);
-
-    if (tab === "login") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setError("이메일 또는 비밀번호가 올바르지 않습니다.");
-      else onClose();
-    } else {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: window.location.origin },
-      });
-      if (error) setError(error.message);
-      else setSuccess("인증 이메일을 발송했습니다. 이메일을 확인해주세요!");
-    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+    else onClose();
     setLoading(false);
   };
 
@@ -89,20 +75,7 @@ export function AuthModal({ onClose, defaultTab = "login" }: Props) {
           </button>
         </div>
 
-        {/* Tab */}
-        <div className="flex bg-secondary rounded-lg p-1 mb-5">
-          {(["login", "signup"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => { setTab(t); setError(null); setSuccess(null); }}
-              className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-all ${
-                tab === t ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t === "login" ? "로그인" : "회원가입"}
-            </button>
-          ))}
-        </div>
+        <h2 className="text-base font-semibold mb-5 text-center">로그인</h2>
 
         {/* Social Login */}
         <div className="space-y-2 mb-4">
@@ -135,12 +108,12 @@ export function AuthModal({ onClose, defaultTab = "login" }: Props) {
         {/* Divider */}
         <div className="flex items-center gap-2 mb-4">
           <div className="flex-1 h-px bg-border" />
-          <span className="text-xs text-muted-foreground">또는</span>
+          <span className="text-xs text-muted-foreground">또는 이메일로 로그인</span>
           <div className="flex-1 h-px bg-border" />
         </div>
 
-        {/* Email Form */}
-        <form onSubmit={handleEmailAuth} className="space-y-3">
+        {/* Email Login Only */}
+        <form onSubmit={handleEmailLogin} className="space-y-3">
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
@@ -172,7 +145,6 @@ export function AuthModal({ onClose, defaultTab = "login" }: Props) {
             </button>
           </div>
 
-          {/* Error / Success */}
           <AnimatePresence>
             {error && (
               <motion.div
@@ -185,15 +157,6 @@ export function AuthModal({ onClose, defaultTab = "login" }: Props) {
                 {error}
               </motion.div>
             )}
-            {success && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gain/10 border border-gain/20 text-xs text-gain"
-              >
-                {success}
-              </motion.div>
-            )}
           </AnimatePresence>
 
           <button
@@ -201,7 +164,7 @@ export function AuthModal({ onClose, defaultTab = "login" }: Props) {
             disabled={loading}
             className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
-            {loading ? "처리 중..." : tab === "login" ? "로그인" : "회원가입"}
+            {loading ? "처리 중..." : "로그인"}
           </button>
         </form>
       </motion.div>

@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
-import { Brain, Target, Zap, TrendingUp, ShieldCheck } from "lucide-react";
+import { Brain, Target, Zap, TrendingUp, ShieldCheck, Crown } from "lucide-react";
 import { AI_FACTORS } from "@/data/stockData";
+import { ProGate } from "@/components/ProGate";
+import { useSubscription } from "@/hooks/useSubscription";
 
 interface PredictionPanelProps {
   score: number;
@@ -46,12 +48,13 @@ const getSignalConfig = (signal: string) => {
 };
 
 export function PredictionPanel({ score, signal, symbol }: PredictionPanelProps) {
+  const { isPro } = useSubscription();
   const cfg = getSignalConfig(signal);
   const scoreColor = getScoreColor(score);
   const circumference = 2 * Math.PI * 40;
   const offset = circumference - (score / 100) * circumference;
 
-  return (
+  const panelContent = (
     <div className="space-y-4">
       {/* AI Score Ring */}
       <div className="glass rounded-xl p-5">
@@ -142,5 +145,15 @@ export function PredictionPanel({ score, signal, symbol }: PredictionPanelProps)
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <ProGate
+      isPro={isPro}
+      message="AI 예측 분석은 Pro 전용 기능입니다. 월 ₩4,900으로 무제한 이용하세요."
+      mode="blur"
+    >
+      {panelContent}
+    </ProGate>
   );
 }
