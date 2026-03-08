@@ -195,6 +195,10 @@ const Index = () => {
           symbol={stock.symbol}
         />
       </div>
+
+      <AnimatePresence>
+        {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      </AnimatePresence>
     </div>
   );
 };
