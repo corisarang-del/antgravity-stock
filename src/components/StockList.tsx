@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Search } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { STOCKS } from "@/data/stockData";
 
 interface StockListProps {
