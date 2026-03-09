@@ -1,1 +1,4 @@
 project_id = "qqtvmoxioxqxonuutxnf"
+
+[functions.dart-ipo]
+verify_jwt = false

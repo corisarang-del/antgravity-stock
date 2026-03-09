@@ -17,6 +17,10 @@ export default {
         sans: ["Space Grotesk", "sans-serif"],
         mono: ["JetBrains Mono", "monospace"],
       },
+      backgroundImage: {
+        "gradient-ant": "var(--gradient-ant)",
+        "gradient-primary": "var(--gradient-primary)",
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
