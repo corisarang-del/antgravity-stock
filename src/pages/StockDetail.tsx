@@ -55,7 +55,7 @@ export default function StockDetail() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold gradient-text-primary text-lg">StockAI</span>
+              <span className="font-bold gradient-text-primary text-lg">AntGravity</span>
               <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-mono">PRO</span>
             </div>
           </div>
