@@ -6,70 +6,77 @@
 
 @layer base {
   :root {
-    /* ─── Core palette ─── */
-    --background: 224 40% 4%;
-    --foreground: 210 35% 95%;
+    /* ─── Core palette — 90s Anime ─── */
+    /* Warm dark: deep indigo-navy, slight warm tint (like twilight sky in 90s cel anime) */
+    --background: 230 35% 6%;
+    --foreground: 42 30% 93%;
 
-    /* Cards / surfaces */
-    --card: 224 35% 7%;
-    --card-foreground: 210 35% 95%;
+    /* Cards / surfaces — slightly warmer tinted dark */
+    --card: 232 30% 9%;
+    --card-foreground: 42 30% 93%;
 
-    --popover: 224 35% 7%;
-    --popover-foreground: 210 35% 95%;
+    --popover: 232 30% 9%;
+    --popover-foreground: 42 30% 93%;
 
-    /* Brand: AntGravity neon-green (matches character accent) */
-    --primary: 145 80% 50%;
-    --primary-foreground: 224 40% 4%;
+    /* Brand: warm teal (Abby's shirt / Baby's hair — 90s anime signature cyan-teal) */
+    --primary: 178 62% 52%;
+    --primary-foreground: 230 35% 6%;
 
-    --secondary: 224 30% 12%;
-    --secondary-foreground: 210 35% 95%;
+    --secondary: 232 25% 14%;
+    --secondary-foreground: 42 30% 93%;
 
-    --muted: 224 30% 12%;
-    --muted-foreground: 215 18% 52%;
+    --muted: 232 25% 14%;
+    --muted-foreground: 232 15% 52%;
 
-    --accent: 145 80% 50%;
-    --accent-foreground: 224 40% 4%;
+    /* Accent: warm amber-gold (Mystery's earrings / Baby's beret) */
+    --accent: 42 90% 56%;
+    --accent-foreground: 230 35% 6%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 350 80% 60%;
+    --destructive-foreground: 42 30% 95%;
 
-    --border: 224 25% 16%;
-    --input: 224 30% 12%;
-    --ring: 145 80% 50%;
+    --border: 232 22% 18%;
+    --input: 232 25% 14%;
+    --ring: 178 62% 52%;
 
     --radius: 0.875rem;
 
     /* ─── Semantic tokens ─── */
-    --gain: 145 70% 48%;
-    --gain-foreground: 224 40% 4%;
-    --loss: 0 84% 60%;
-    --loss-foreground: 210 40% 98%;
-    --warning: 42 95% 58%;
+    /* Gain: soft teal-green (less neon, more 90s watercolor) */
+    --gain: 162 58% 48%;
+    --gain-foreground: 230 35% 6%;
+    /* Loss: warm rose-red (Romance's lips / rose petals on Abby) */
+    --loss: 350 75% 60%;
+    --loss-foreground: 42 30% 95%;
+    /* Warning: golden amber */
+    --warning: 42 90% 56%;
 
-    --chart-grid: 224 25% 13%;
-    --glass-bg: 224 35% 8%;
-    --glass-border: 224 25% 20%;
+    --chart-grid: 232 22% 14%;
+    --glass-bg: 232 30% 8%;
+    --glass-border: 232 22% 22%;
 
-    /* ─── Gradients ─── */
-    --gradient-primary: linear-gradient(135deg, hsl(145 80% 50%), hsl(165 75% 45%));
-    --gradient-gain: linear-gradient(135deg, hsl(145 70% 48%), hsl(145 70% 36%));
-    --gradient-loss: linear-gradient(135deg, hsl(0 84% 60%), hsl(0 84% 45%));
-    --gradient-card: linear-gradient(145deg, hsl(224 35% 9%), hsl(224 35% 6%));
-    --gradient-ant: linear-gradient(135deg, hsl(145 80% 50%), hsl(175 80% 45%));
+    /* ─── Gradients — 90s anime sky tones ─── */
+    --gradient-primary: linear-gradient(135deg, hsl(178 62% 52%), hsl(200 65% 58%));
+    --gradient-gain: linear-gradient(135deg, hsl(162 58% 48%), hsl(162 58% 36%));
+    --gradient-loss: linear-gradient(135deg, hsl(350 75% 60%), hsl(350 75% 45%));
+    /* Card: warm indigo-to-navy, like 90s anime night scene */
+    --gradient-card: linear-gradient(145deg, hsl(232 30% 11%), hsl(230 35% 7%));
+    /* Ant gradient: teal → sky (like the background in Baby's image) */
+    --gradient-ant: linear-gradient(135deg, hsl(178 62% 52%), hsl(210 70% 62%));
 
     /* ─── Shadows ─── */
-    --shadow-glow: 0 0 32px hsl(145 80% 50% / 0.18);
-    --shadow-card: 0 4px 28px hsl(224 40% 2% / 0.65);
+    --shadow-glow: 0 0 32px hsl(178 62% 52% / 0.22);
+    --shadow-card: 0 4px 28px hsl(230 40% 2% / 0.65);
 
     /* ─── Sidebar ─── */
-    --sidebar-background: 224 35% 6%;
-    --sidebar-foreground: 210 35% 78%;
-    --sidebar-primary: 145 80% 50%;
-    --sidebar-primary-foreground: 224 40% 4%;
-    --sidebar-accent: 224 30% 12%;
-    --sidebar-accent-foreground: 210 35% 95%;
-    --sidebar-border: 224 25% 16%;
-    --sidebar-ring: 145 80% 50%;
+    --sidebar-background: 230 35% 5%;
+    --sidebar-foreground: 42 25% 76%;
+    --sidebar-primary: 178 62% 52%;
+    --sidebar-primary-foreground: 230 35% 6%;
+    --sidebar-accent: 232 25% 14%;
+    --sidebar-accent-foreground: 42 30% 93%;
+    --sidebar-border: 232 22% 18%;
+    --sidebar-ring: 178 62% 52%;
   }
 }
 
@@ -138,6 +145,6 @@
 
   /* Ant character glow on hover */
   .ant-glow:hover {
-    filter: drop-shadow(0 0 12px hsl(145 80% 50% / 0.6));
+    filter: drop-shadow(0 0 12px hsl(178 62% 52% / 0.65));
   }
 }
