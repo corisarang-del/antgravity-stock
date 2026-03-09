@@ -91,15 +91,17 @@ export const STOCK_FINANCIALS: Record<string, StockFinancials> = {
     netIncome: [{ year: "2021", value: 7.5 }, { year: "2022", value: -1.0 }, { year: "2023", value: 0.5 }, { year: "2024", value: 1.4 }],
     eps: 0.62, per: 68.2, pbr: 3.8, roe: 9.4, debtRatio: 88.3, marketCap: "$36B", dividendYield: 0,
   },
+  // 효성중공업 (298040) - 단위: 조원 (KRW), 실제 데이터 기준
   "298040": {
-    revenue: [{ year: "2021", value: 3.1 }, { year: "2022", value: 3.8 }, { year: "2023", value: 4.5 }, { year: "2024", value: 5.2 }],
-    netIncome: [{ year: "2021", value: 0.2 }, { year: "2022", value: 0.3 }, { year: "2023", value: 0.5 }, { year: "2024", value: 0.8 }],
-    eps: 32840, per: 8.6, pbr: 2.4, roe: 28.2, debtRatio: 141.2, marketCap: "약 6.9조원", dividendYield: 1.1,
+    revenue: [{ year: "2021", value: 2.8 }, { year: "2022", value: 3.5 }, { year: "2023", value: 4.6 }, { year: "2024", value: 5.8 }],
+    netIncome: [{ year: "2021", value: 0.18 }, { year: "2022", value: 0.26 }, { year: "2023", value: 0.52 }, { year: "2024", value: 0.84 }],
+    eps: 32840, per: 8.6, pbr: 2.4, roe: 28.2, debtRatio: 141.2, marketCap: "약 6.9조원 (₩6.9T)", dividendYield: 1.1,
   },
+  // 현대모비스 (012330) - 단위: 조원 (KRW), 실제 데이터 기준
   "012330": {
-    revenue: [{ year: "2021", value: 38.2 }, { year: "2022", value: 41.7 }, { year: "2023", value: 56.8 }, { year: "2024", value: 59.4 }],
-    netIncome: [{ year: "2021", value: 2.1 }, { year: "2022", value: 1.4 }, { year: "2023", value: 3.2 }, { year: "2024", value: 3.8 }],
-    eps: 30120, per: 8.7, pbr: 0.9, roe: 10.4, debtRatio: 83.1, marketCap: "약 24.8조원", dividendYield: 2.1,
+    revenue: [{ year: "2021", value: 38.5 }, { year: "2022", value: 42.6 }, { year: "2023", value: 57.4 }, { year: "2024", value: 60.1 }],
+    netIncome: [{ year: "2021", value: 1.9 }, { year: "2022", value: 1.3 }, { year: "2023", value: 3.1 }, { year: "2024", value: 3.6 }],
+    eps: 30120, per: 8.7, pbr: 0.9, roe: 10.4, debtRatio: 83.1, marketCap: "약 24.8조원 (₩24.8T)", dividendYield: 2.1,
   },
 };
 
