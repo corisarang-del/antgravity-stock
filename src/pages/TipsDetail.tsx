@@ -46,12 +46,12 @@ const TipsDetail = () => {
               <span className="text-xl font-bold text-primary">{ipo.company.slice(0, 2)}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <h1 className="font-bold text-xl">{ipo.company}</h1>
-                <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold ${st.cls}`}>
-                  {STATUS_LABELS[ipo.status]}
-                </span>
-              </div>
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h1 className="font-bold text-xl">{ipo.company}</h1>
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold ${st.cls}`}>
+                    {STATUS_LABELS[ipo.status]}
+                  </span>
+                </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Tag className="w-3 h-3" />
                 {ipo.sector}
