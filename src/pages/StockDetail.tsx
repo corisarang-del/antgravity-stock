@@ -11,7 +11,7 @@ import { AnalystTargets } from "@/components/AnalystTargets";
 import { PredictionPanel } from "@/components/PredictionPanel";
 
 const TABS = [
-  { id: "chart", label: "캔들스틱", icon: BarChart2 },
+  { id: "chart", label: "차트", icon: BarChart2 },
   { id: "financials", label: "재무제표", icon: TrendingUp },
   { id: "news", label: "뉴스", icon: Newspaper },
   { id: "analysts", label: "목표가", icon: Target },
