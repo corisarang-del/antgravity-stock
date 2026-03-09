@@ -9,6 +9,10 @@ import StockDetail from "./pages/StockDetail";
 import Portfolio from "./pages/Portfolio";
 import Watchlist from "./pages/Watchlist";
 import Alerts from "./pages/Alerts";
+import Diary from "./pages/Diary";
+import Tips from "./pages/Tips";
+import TipsDetail from "./pages/TipsDetail";
+import Upgrade from "./pages/Upgrade";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentFail from "./pages/PaymentFail";
 import NotFound from "./pages/NotFound";
@@ -28,9 +32,12 @@ const App = () => (
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/watchlist" element={<Watchlist />} />
             <Route path="/alerts" element={<Alerts />} />
+            <Route path="/diary" element={<Diary />} />
+            <Route path="/tips" element={<Tips />} />
+            <Route path="/tips/:id" element={<TipsDetail />} />
+            <Route path="/upgrade" element={<Upgrade />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/fail" element={<PaymentFail />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
