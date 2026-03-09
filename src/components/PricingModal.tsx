@@ -102,7 +102,7 @@ export function PricingModal({ onClose }: Props) {
                 <Crown className="w-4 h-4 text-primary" />
               </div>
               <div>
-                <div className="font-bold gradient-text-primary">StockAI Pro</div>
+                <div className="font-bold gradient-text-primary">AntGravity Pro</div>
                 <div className="text-xs text-muted-foreground">월 ₩4,900 · 언제든 취소 가능</div>
               </div>
             </div>
