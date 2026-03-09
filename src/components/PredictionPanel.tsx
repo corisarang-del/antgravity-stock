@@ -65,7 +65,7 @@ export function PredictionPanel({ score, signal, symbol }: PredictionPanelProps)
         <div className="flex items-center gap-5">
           <div className="relative w-24 h-24 shrink-0">
             <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(222, 30%, 18%)" strokeWidth="8" />
+              <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(220, 18%, 88%)" strokeWidth="8" />
               <motion.circle
                 cx="50"
                 cy="50"
