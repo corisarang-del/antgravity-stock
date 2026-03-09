@@ -68,7 +68,7 @@ export function AuthModal({ onClose, defaultTab = "login" }: Props) {
             <div className="w-7 h-7 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
               <Brain className="w-3.5 h-3.5 text-primary" />
             </div>
-            <span className="font-bold gradient-text-primary">StockAI</span>
+            <span className="font-bold gradient-text-primary">AntGravity</span>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground">
             <X className="w-4 h-4" />
