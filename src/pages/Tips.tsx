@@ -47,18 +47,33 @@ const Tips = () => {
         `https://${projectId}.supabase.co/functions/v1/dart-ipo`,
         { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } }
       );
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      if (data.list && data.list.length > 0) {
-        setIpoList(data.list);
-        setIsLive(true);
-      } else {
-        // DART returned empty — fall back to mock
-        setIpoList(IPO_DATA as DartIpoItem[]);
-        setIsLive(false);
+
+      // Read body regardless of status code
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("응답 파싱 실패");
+      }
+
+      // If server returned data.list (even with fallback flag), use it
+      if (data.list !== undefined) {
+        if (data.fallback || data.error) {
+          // Server-side fallback — use mock
+          setIpoList(IPO_DATA as DartIpoItem[]);
+          setIsLive(false);
+          setError("DART 연동 실패 — 샘플 데이터를 표시합니다");
+        } else if (data.list.length > 0) {
+          setIpoList(data.list);
+          setIsLive(true);
+        } else {
+          setIpoList(IPO_DATA as DartIpoItem[]);
+          setIsLive(false);
+        }
+      } else if (data.error) {
+        throw new Error(data.error);
       }
     } catch (e: any) {
-      // Fallback to mock data on error
       setIpoList(IPO_DATA as DartIpoItem[]);
       setIsLive(false);
       setError("DART 연동 실패 — 샘플 데이터를 표시합니다");
