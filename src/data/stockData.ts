@@ -81,6 +81,26 @@ export const STOCK_FINANCIALS: Record<string, StockFinancials> = {
     netIncome: [{ year: "2021", value: 9.6 }, { year: "2022", value: 3.6 }, { year: "2023", value: -7.7 }, { year: "2024", value: 8.2 }],
     eps: 11024, per: 18.0, pbr: 2.1, roe: 11.6, debtRatio: 52.3, marketCap: "약 144조원", dividendYield: 0.9,
   },
+  PLTR: {
+    revenue: [{ year: "2021", value: 1.5 }, { year: "2022", value: 1.9 }, { year: "2023", value: 2.2 }, { year: "2024", value: 2.9 }],
+    netIncome: [{ year: "2021", value: -0.5 }, { year: "2022", value: -0.4 }, { year: "2023", value: 0.2 }, { year: "2024", value: 0.5 }],
+    eps: 0.19, per: 434.1, pbr: 18.6, roe: 10.8, debtRatio: 12.4, marketCap: "$176B", dividendYield: 0,
+  },
+  HOOD: {
+    revenue: [{ year: "2021", value: 1.8 }, { year: "2022", value: 1.4 }, { year: "2023", value: 1.9 }, { year: "2024", value: 2.9 }],
+    netIncome: [{ year: "2021", value: 7.5 }, { year: "2022", value: -1.0 }, { year: "2023", value: 0.5 }, { year: "2024", value: 1.4 }],
+    eps: 0.62, per: 68.2, pbr: 3.8, roe: 9.4, debtRatio: 88.3, marketCap: "$36B", dividendYield: 0,
+  },
+  "298040": {
+    revenue: [{ year: "2021", value: 3.1 }, { year: "2022", value: 3.8 }, { year: "2023", value: 4.5 }, { year: "2024", value: 5.2 }],
+    netIncome: [{ year: "2021", value: 0.2 }, { year: "2022", value: 0.3 }, { year: "2023", value: 0.5 }, { year: "2024", value: 0.8 }],
+    eps: 32840, per: 8.6, pbr: 2.4, roe: 28.2, debtRatio: 141.2, marketCap: "약 6.9조원", dividendYield: 1.1,
+  },
+  "012330": {
+    revenue: [{ year: "2021", value: 38.2 }, { year: "2022", value: 41.7 }, { year: "2023", value: 56.8 }, { year: "2024", value: 59.4 }],
+    netIncome: [{ year: "2021", value: 2.1 }, { year: "2022", value: 1.4 }, { year: "2023", value: 3.2 }, { year: "2024", value: 3.8 }],
+    eps: 30120, per: 8.7, pbr: 0.9, roe: 10.4, debtRatio: 83.1, marketCap: "약 24.8조원", dividendYield: 2.1,
+  },
 };
 
 export const STOCK_NEWS: Record<string, NewsItem[]> = {
