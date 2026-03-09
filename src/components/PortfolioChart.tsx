@@ -1,18 +1,19 @@
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import type { Holding } from "@/pages/Portfolio";
 
 interface Props {
   holdings: Holding[];
 }
 
+// 90s anime teal/amber palette
 const PIE_COLORS = [
-  "hsl(185, 100%, 50%)",
-  "hsl(142, 76%, 46%)",
-  "hsl(221, 100%, 62%)",
-  "hsl(38, 100%, 55%)",
-  "hsl(280, 80%, 65%)",
-  "hsl(350, 80%, 60%)",
-  "hsl(165, 70%, 45%)",
+  "hsl(178, 58%, 40%)",   // primary teal
+  "hsl(38, 88%, 52%)",    // amber
+  "hsl(162, 52%, 38%)",   // teal-green
+  "hsl(200, 60%, 48%)",   // sky
+  "hsl(350, 68%, 52%)",   // rose
+  "hsl(258, 52%, 58%)",   // violet
+  "hsl(178, 44%, 58%)",   // light teal
 ];
 
 const RADIAN = Math.PI / 180;
@@ -23,8 +24,8 @@ function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: an
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
   return (
-    <text x={x} y={y} fill="hsl(var(--foreground))" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>
-      {`${(percent * 100).toFixed(1)}%`}
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={10} fontWeight={700}>
+      {`${(percent * 100).toFixed(0)}%`}
     </text>
   );
 }
@@ -32,8 +33,9 @@ function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: an
 export function PortfolioChart({ holdings }: Props) {
   if (holdings.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
-        보유 종목이 없습니다
+      <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
+        <span className="text-3xl">📊</span>
+        <p className="text-sm">보유 종목이 없습니다</p>
       </div>
     );
   }
@@ -48,19 +50,19 @@ export function PortfolioChart({ holdings }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="h-56">
+      <div className="h-52">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               cx="50%"
               cy="50%"
-              outerRadius={90}
-              innerRadius={46}
+              outerRadius={88}
+              innerRadius={44}
               dataKey="value"
               labelLine={false}
               label={CustomLabel}
-              strokeWidth={2}
+              strokeWidth={3}
               stroke="hsl(var(--background))"
             >
               {data.map((_, i) => (
@@ -72,9 +74,10 @@ export function PortfolioChart({ holdings }: Props) {
               contentStyle={{
                 background: "hsl(var(--card))",
                 border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
+                borderRadius: "10px",
                 fontSize: "12px",
                 color: "hsl(var(--foreground))",
+                boxShadow: "0 4px 12px hsl(220 20% 60% / 0.12)",
               }}
             />
           </PieChart>
@@ -82,18 +85,22 @@ export function PortfolioChart({ holdings }: Props) {
       </div>
 
       {/* Legend */}
-      <div className="space-y-1.5">
+      <div className="space-y-2 pt-1 border-t border-border">
         {data.map((item, i) => {
-          const pct = (item.value / total * 100).toFixed(1);
+          const pct = ((item.value / total) * 100).toFixed(1);
           return (
             <div key={item.name} className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
-                <span className="font-mono text-foreground">{item.name}</span>
+                <div
+                  className="w-2.5 h-2.5 rounded-sm shrink-0"
+                  style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}
+                />
+                <span className="font-mono font-semibold text-foreground">{item.name}</span>
+                <span className="text-muted-foreground hidden sm:block truncate max-w-[80px]">{item.fullName}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">{pct}%</span>
-                <span className="font-mono text-foreground">${item.value.toLocaleString()}</span>
+                <span className="text-muted-foreground font-mono">{pct}%</span>
+                <span className="font-mono text-foreground font-semibold">${item.value.toLocaleString()}</span>
               </div>
             </div>
           );
