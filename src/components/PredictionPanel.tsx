@@ -11,10 +11,10 @@ interface PredictionPanelProps {
 }
 
 const getScoreColor = (score: number) => {
-  if (score >= 75) return "hsl(158, 64%, 52%)";
-  if (score >= 55) return "hsl(185, 100%, 50%)";
-  if (score >= 40) return "hsl(45, 93%, 58%)";
-  return "hsl(0, 84%, 60%)";
+  if (score >= 75) return "hsl(162, 52%, 38%)";  // high → teal-green
+  if (score >= 55) return "hsl(178, 58%, 40%)";  // good → teal
+  if (score >= 40) return "hsl(38, 88%, 52%)";   // mid → amber
+  return "hsl(350, 68%, 52%)";                    // low → rose-red
 };
 
 const getSignalConfig = (signal: string) => {
@@ -65,7 +65,7 @@ export function PredictionPanel({ score, signal, symbol }: PredictionPanelProps)
         <div className="flex items-center gap-5">
           <div className="relative w-24 h-24 shrink-0">
             <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(222, 30%, 18%)" strokeWidth="8" />
+              <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(220, 18%, 88%)" strokeWidth="8" />
               <motion.circle
                 cx="50"
                 cy="50"
