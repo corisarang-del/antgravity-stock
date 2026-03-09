@@ -12,14 +12,13 @@ serve(async (req) => {
 
   const DART_API_KEY = Deno.env.get("DART_API_KEY");
   if (!DART_API_KEY) {
-    return new Response(JSON.stringify({ error: "DART_API_KEY not configured" }), {
-      status: 500,
+    return new Response(JSON.stringify({ error: "DART_API_KEY not configured", list: [] }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   try {
-    // 최근 6개월 범위로 조회
     const today = new Date();
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 3);
@@ -32,26 +31,48 @@ serve(async (req) => {
     const bgn_de = fmt(sixMonthsAgo);
     const end_de = fmt(threeMonthsAhead);
 
-    const url = `https://opendart.fss.or.kr/api/ipoSttus.json?crtfc_key=${DART_API_KEY}&bgn_de=${bgn_de}&end_de=${end_de}`;
+    // Use HTTP (not HTTPS) to avoid TLS HandshakeFailure with Korean government servers
+    const url = `http://opendart.fss.or.kr/api/ipoSttus.json?crtfc_key=${DART_API_KEY}&bgn_de=${bgn_de}&end_de=${end_de}`;
 
-    const res = await fetch(url);
-    const data = await res.json();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    let data: any;
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      data = await res.json();
+    } catch (fetchErr: any) {
+      clearTimeout(timeout);
+      // Network/TLS error — return empty list so client falls back gracefully
+      console.error("DART fetch error:", fetchErr.message);
+      return new Response(
+        JSON.stringify({ error: fetchErr.message, list: [], fallback: true }),
+        {
+          status: 200, // Return 200 so client can read the body
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
     if (data.status !== "000") {
-      // DART API error codes: 010 = no data, others = error
       if (data.status === "010") {
         return new Response(JSON.stringify({ list: [] }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      throw new Error(`DART API error: ${data.message}`);
+      return new Response(
+        JSON.stringify({ error: `DART: ${data.message}`, list: [], fallback: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Normalize DART response to our IpoItem format
     const todayStr = fmt(today);
 
     const normalized = (data.list || []).map((item: any, idx: number) => {
-      // subscrib_dt: e.g. "20260310" or "20260310~20260311"
       const subDt: string = item.subscrib_dt ?? "";
       const [subStart, subEnd] = subDt.includes("~")
         ? subDt.split("~").map((s: string) => s.trim())
@@ -65,7 +86,6 @@ serve(async (req) => {
       const endFmt = fmtDate(subEnd);
       const endRaw = subEnd.replace(/-/g, "");
 
-      // Determine status
       let status: "upcoming" | "open" | "closed";
       if (!endRaw || endRaw < todayStr) {
         status = "closed";
@@ -75,7 +95,6 @@ serve(async (req) => {
         status = "upcoming";
       }
 
-      // issue_price may be "-" when not determined
       const offerPrice =
         item.issue_price && item.issue_price !== "-"
           ? `${Number(item.issue_price).toLocaleString("ko-KR")}원`
@@ -98,7 +117,6 @@ serve(async (req) => {
       };
     });
 
-    // Sort: open first, upcoming next, closed last
     const order = { open: 0, upcoming: 1, closed: 2 };
     normalized.sort((a: any, b: any) => order[a.status] - order[b.status]);
 
@@ -106,9 +124,13 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("Unexpected error:", err.message);
+    return new Response(
+      JSON.stringify({ error: err.message, list: [], fallback: true }),
+      {
+        status: 200, // Always 200 so client reads body
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });
