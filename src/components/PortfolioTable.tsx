@@ -22,9 +22,9 @@ export function PortfolioTable({ holdings, onRemove }: Props) {
     <div className="overflow-x-auto -mx-4 px-4">
       <table className="w-full text-sm min-w-[600px]">
         <thead>
-          <tr className="border-b border-border">
+        <tr className="border-b border-border">
             {["종목", "수량", "평균단가", "현재가", "평가금액", "손익", "수익률", ""].map((h) => (
-              <th key={h} className="pb-2 text-left text-xs text-muted-foreground font-medium px-2 first:pl-0 last:pr-0">{h}</th>
+              <th key={h} className="pb-2.5 text-left text-xs text-muted-foreground font-semibold uppercase tracking-wide px-2 first:pl-0 last:pr-0">{h}</th>
             ))}
           </tr>
         </thead>
