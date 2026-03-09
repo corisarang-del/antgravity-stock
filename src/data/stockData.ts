@@ -171,25 +171,32 @@ export function getAnalystTargets(symbol: string): AnalystTarget[] {
   ];
 }
 export const STOCKS = [
-  { symbol: "AAPL", name: "Apple Inc.", price: 189.84, change: 2.34, changePct: 1.25, prediction: 78, signal: "BUY", sector: "Tech" },
-  { symbol: "NVDA", name: "NVIDIA Corp.", price: 875.35, change: 24.12, changePct: 2.83, prediction: 91, signal: "STRONG BUY", sector: "Tech" },
-  { symbol: "TSLA", name: "Tesla Inc.", price: 248.50, change: -6.20, changePct: -2.43, prediction: 42, signal: "HOLD", sector: "EV" },
-  { symbol: "MSFT", name: "Microsoft Corp.", price: 415.26, change: 3.88, changePct: 0.94, prediction: 83, signal: "BUY", sector: "Tech" },
-  { symbol: "GOOGL", name: "Alphabet Inc.", price: 175.98, change: -1.45, changePct: -0.82, prediction: 65, signal: "HOLD", sector: "Tech" },
-  { symbol: "AMZN", name: "Amazon.com Inc.", price: 198.11, change: 5.62, changePct: 2.92, prediction: 88, signal: "BUY", sector: "E-Commerce" },
-  { symbol: "META", name: "Meta Platforms", price: 512.44, change: 8.32, changePct: 1.65, prediction: 72, signal: "BUY", sector: "Social" },
-  { symbol: "005930", name: "삼성전자", price: 74800, change: -500, changePct: -0.66, prediction: 61, signal: "HOLD", sector: "반도체" },
-  { symbol: "035420", name: "NAVER", price: 182500, change: 3500, changePct: 1.96, prediction: 70, signal: "BUY", sector: "인터넷" },
-  { symbol: "000660", name: "SK하이닉스", price: 198000, change: 5000, changePct: 2.59, prediction: 85, signal: "BUY", sector: "반도체" },
+  { symbol: "AAPL",   name: "Apple Inc.",       price: 189.84,  change: 2.34,    changePct: 1.25,  prediction: 78, signal: "BUY",        sector: "Tech" },
+  { symbol: "NVDA",   name: "NVIDIA Corp.",      price: 875.35,  change: 24.12,   changePct: 2.83,  prediction: 91, signal: "STRONG BUY", sector: "Tech" },
+  { symbol: "TSLA",   name: "Tesla Inc.",        price: 248.50,  change: -6.20,   changePct: -2.43, prediction: 42, signal: "HOLD",       sector: "EV" },
+  { symbol: "MSFT",   name: "Microsoft Corp.",   price: 415.26,  change: 3.88,    changePct: 0.94,  prediction: 83, signal: "BUY",        sector: "Tech" },
+  { symbol: "GOOGL",  name: "Alphabet Inc.",     price: 175.98,  change: -1.45,   changePct: -0.82, prediction: 65, signal: "HOLD",       sector: "Tech" },
+  { symbol: "AMZN",   name: "Amazon.com Inc.",   price: 198.11,  change: 5.62,    changePct: 2.92,  prediction: 88, signal: "BUY",        sector: "E-Commerce" },
+  { symbol: "META",   name: "Meta Platforms",    price: 512.44,  change: 8.32,    changePct: 1.65,  prediction: 72, signal: "BUY",        sector: "Social" },
+  { symbol: "PLTR",   name: "Palantir Technologies", price: 82.47, change: 3.18,  changePct: 4.01,  prediction: 87, signal: "BUY",        sector: "AI/Data" },
+  { symbol: "HOOD",   name: "Robinhood Markets", price: 42.31,   change: -1.24,   changePct: -2.85, prediction: 55, signal: "HOLD",       sector: "Fintech" },
+  { symbol: "005930", name: "삼성전자",           price: 74800,   change: -500,    changePct: -0.66, prediction: 61, signal: "HOLD",       sector: "반도체" },
+  { symbol: "035420", name: "NAVER",             price: 182500,  change: 3500,    changePct: 1.96,  prediction: 70, signal: "BUY",        sector: "인터넷" },
+  { symbol: "000660", name: "SK하이닉스",         price: 198000,  change: 5000,    changePct: 2.59,  prediction: 85, signal: "BUY",        sector: "반도체" },
+  { symbol: "298040", name: "효성중공업",         price: 284000,  change: 8500,    changePct: 3.09,  prediction: 80, signal: "BUY",        sector: "중공업" },
+  { symbol: "012330", name: "현대모비스",         price: 261500,  change: -2500,   changePct: -0.95, prediction: 67, signal: "HOLD",       sector: "자동차부품" },
 ];
 
 export const INDICES = [
-  { name: "S&P 500", value: "5,234.18", change: "+0.87%", up: true },
-  { name: "NASDAQ", value: "16,384.47", change: "+1.24%", up: true },
-  { name: "KOSPI", value: "2,687.44", change: "-0.34%", up: false },
-  { name: "DOW", value: "39,127.80", change: "+0.52%", up: true },
-  { name: "NIKKEI", value: "40,168.07", change: "+0.91%", up: true },
-  { name: "VIX", value: "14.23", change: "-3.12%", up: false },
+  { name: "S&P 500",  value: "5,234.18",  change: "+0.87%", up: true  },
+  { name: "NASDAQ",   value: "16,384.47", change: "+1.24%", up: true  },
+  { name: "KOSPI",    value: "2,687.44",  change: "-0.34%", up: false },
+  { name: "KOSDAQ",   value: "876.32",    change: "+0.61%", up: true  },
+  { name: "DOW",      value: "39,127.80", change: "+0.52%", up: true  },
+  { name: "NIKKEI",   value: "40,168.07", change: "+0.91%", up: true  },
+  { name: "상해종합",  value: "3,412.88",  change: "-0.28%", up: false },
+  { name: "CSI 300",  value: "4,018.54",  change: "+0.15%", up: true  },
+  { name: "VIX",      value: "14.23",     change: "-3.12%", up: false },
 ];
 
 export function generateChartData(basePrice: number, days = 60) {
