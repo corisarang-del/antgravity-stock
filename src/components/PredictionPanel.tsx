@@ -11,10 +11,10 @@ interface PredictionPanelProps {
 }
 
 const getScoreColor = (score: number) => {
-  if (score >= 75) return "hsl(158, 64%, 52%)";
-  if (score >= 55) return "hsl(185, 100%, 50%)";
-  if (score >= 40) return "hsl(45, 93%, 58%)";
-  return "hsl(0, 84%, 60%)";
+  if (score >= 75) return "hsl(162, 52%, 38%)";  // high → teal-green
+  if (score >= 55) return "hsl(178, 58%, 40%)";  // good → teal
+  if (score >= 40) return "hsl(38, 88%, 52%)";   // mid → amber
+  return "hsl(350, 68%, 52%)";                    // low → rose-red
 };
 
 const getSignalConfig = (signal: string) => {
