@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Brain, TrendingUp, TrendingDown, BarChart2, Newspaper, Target, ChevronRight } from "lucide-react";
 import { STOCKS, generateChartData, STOCK_FINANCIALS, getStockNews, getAnalystTargets } from "@/data/stockData";
 import { MarketTicker } from "@/components/MarketOverview";
-import { CandlestickChart } from "@/components/CandlestickChart";
+import { StockChart } from "@/components/StockChart";
 import { FinancialSummary } from "@/components/FinancialSummary";
 import { NewsFeed } from "@/components/NewsFeed";
 import { AnalystTargets } from "@/components/AnalystTargets";
