@@ -4,14 +4,14 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Brain, TrendingUp, TrendingDown, BarChart2, Newspaper, Target, ChevronRight } from "lucide-react";
 import { STOCKS, generateChartData, STOCK_FINANCIALS, getStockNews, getAnalystTargets } from "@/data/stockData";
 import { MarketTicker } from "@/components/MarketOverview";
-import { CandlestickChart } from "@/components/CandlestickChart";
+import { StockChart } from "@/components/StockChart";
 import { FinancialSummary } from "@/components/FinancialSummary";
 import { NewsFeed } from "@/components/NewsFeed";
 import { AnalystTargets } from "@/components/AnalystTargets";
 import { PredictionPanel } from "@/components/PredictionPanel";
 
 const TABS = [
-  { id: "chart", label: "캔들스틱", icon: BarChart2 },
+  { id: "chart", label: "차트", icon: BarChart2 },
   { id: "financials", label: "재무제표", icon: TrendingUp },
   { id: "news", label: "뉴스", icon: Newspaper },
   { id: "analysts", label: "목표가", icon: Target },
@@ -148,7 +148,7 @@ export default function StockDetail() {
                 {activeTab === "chart" && (
                   <div className="glass rounded-xl p-4">
                     <div className="flex items-center justify-between mb-4">
-                      <div className="text-sm font-semibold">{stock.symbol} 캔들스틱 차트</div>
+                      <div className="text-sm font-semibold">{stock.symbol} 가격 차트</div>
                       <div className="flex gap-1">
                         {TIMEFRAMES.map(tf => (
                           <button
@@ -168,16 +168,16 @@ export default function StockDetail() {
                     {/* Legend */}
                     <div className="flex gap-4 mb-3 text-xs">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-sm bg-gain" />
-                        <span className="text-muted-foreground">양봉 (상승)</span>
+                        <div className={`w-3 h-0.5 rounded ${isGain ? "bg-gain" : "bg-loss"}`} />
+                        <span className="text-muted-foreground">실제 가격</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-sm bg-loss" />
-                        <span className="text-muted-foreground">음봉 (하락)</span>
+                        <div className="w-3 h-0.5 rounded bg-primary" />
+                        <span className="text-muted-foreground">AI 예측</span>
                       </div>
                     </div>
                     <div className="h-80">
-                      <CandlestickChart data={chartData} symbol={stock.symbol} />
+                      <StockChart data={chartData} symbol={stock.symbol} isGain={isGain} />
                     </div>
                   </div>
                 )}
