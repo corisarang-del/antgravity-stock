@@ -98,15 +98,15 @@
 
 @layer utilities {
   .glass {
-    background: hsl(var(--glass-bg) / 0.85);
-    backdrop-filter: blur(18px);
+    background: hsl(var(--glass-bg));
     border: 1px solid hsl(var(--glass-border));
+    box-shadow: var(--shadow-card);
   }
 
   .glass-card {
     background: var(--gradient-card);
-    backdrop-filter: blur(18px);
     border: 1px solid hsl(var(--glass-border));
+    box-shadow: var(--shadow-card);
   }
 
   .glow-primary {
