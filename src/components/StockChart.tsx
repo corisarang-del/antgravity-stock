@@ -45,6 +45,11 @@ export function StockChart({ data, symbol, isGain }: StockChartProps) {
   const gradientId = `gradient-${symbol}`;
   const predictedGradientId = `gradient-predicted-${symbol}`;
 
+  const gainColor = "hsl(162, 52%, 38%)";
+  const lossColor = "hsl(350, 68%, 52%)";
+  const lineColor = isGain ? gainColor : lossColor;
+  const predictColor = "hsl(178, 58%, 40%)";
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -56,36 +61,28 @@ export function StockChart({ data, symbol, isGain }: StockChartProps) {
         <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop
-                offset="5%"
-                stopColor={isGain ? "hsl(158, 64%, 52%)" : "hsl(0, 84%, 60%)"}
-                stopOpacity={0.3}
-              />
-              <stop
-                offset="95%"
-                stopColor={isGain ? "hsl(158, 64%, 52%)" : "hsl(0, 84%, 60%)"}
-                stopOpacity={0}
-              />
+              <stop offset="5%"  stopColor={lineColor} stopOpacity={0.18} />
+              <stop offset="95%" stopColor={lineColor} stopOpacity={0} />
             </linearGradient>
             <linearGradient id={predictedGradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="hsl(185, 100%, 50%)" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="hsl(185, 100%, 50%)" stopOpacity={0} />
+              <stop offset="5%"  stopColor={predictColor} stopOpacity={0.12} />
+              <stop offset="95%" stopColor={predictColor} stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="hsl(222, 30%, 18%)"
+            stroke="hsl(220, 18%, 88%)"
             vertical={false}
           />
           <XAxis
             dataKey="date"
-            tick={{ fill: "hsl(215, 20%, 55%)", fontSize: 10, fontFamily: "JetBrains Mono" }}
+            tick={{ fill: "hsl(220, 12%, 55%)", fontSize: 10, fontFamily: "JetBrains Mono" }}
             tickLine={false}
             axisLine={false}
             interval={Math.floor(data.length / 6)}
           />
           <YAxis
-            tick={{ fill: "hsl(215, 20%, 55%)", fontSize: 10, fontFamily: "JetBrains Mono" }}
+            tick={{ fill: "hsl(220, 12%, 55%)", fontSize: 10, fontFamily: "JetBrains Mono" }}
             tickLine={false}
             axisLine={false}
             tickFormatter={(v) => v.toLocaleString()}
@@ -94,29 +91,29 @@ export function StockChart({ data, symbol, isGain }: StockChartProps) {
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine
             x={data[data.length - 10]?.date}
-            stroke="hsl(185, 100%, 50%)"
+            stroke={predictColor}
             strokeDasharray="4 4"
-            strokeOpacity={0.5}
-            label={{ value: "예측 시작", fill: "hsl(185, 100%, 50%)", fontSize: 10, position: "top" }}
+            strokeOpacity={0.6}
+            label={{ value: "예측 시작", fill: predictColor, fontSize: 10, position: "top" }}
           />
           <Area
             type="monotone"
             dataKey="price"
-            stroke={isGain ? "hsl(158, 64%, 52%)" : "hsl(0, 84%, 60%)"}
+            stroke={lineColor}
             strokeWidth={2}
             fill={`url(#${gradientId})`}
             dot={false}
-            activeDot={{ r: 4, strokeWidth: 0 }}
+            activeDot={{ r: 4, strokeWidth: 0, fill: lineColor }}
           />
           <Area
             type="monotone"
             dataKey="predicted"
-            stroke="hsl(185, 100%, 50%)"
+            stroke={predictColor}
             strokeWidth={2}
             strokeDasharray="5 3"
             fill={`url(#${predictedGradientId})`}
             dot={false}
-            activeDot={{ r: 4, strokeWidth: 0 }}
+            activeDot={{ r: 4, strokeWidth: 0, fill: predictColor }}
           />
         </AreaChart>
       </ResponsiveContainer>
