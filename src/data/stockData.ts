@@ -81,6 +81,26 @@ export const STOCK_FINANCIALS: Record<string, StockFinancials> = {
     netIncome: [{ year: "2021", value: 9.6 }, { year: "2022", value: 3.6 }, { year: "2023", value: -7.7 }, { year: "2024", value: 8.2 }],
     eps: 11024, per: 18.0, pbr: 2.1, roe: 11.6, debtRatio: 52.3, marketCap: "약 144조원", dividendYield: 0.9,
   },
+  PLTR: {
+    revenue: [{ year: "2021", value: 1.5 }, { year: "2022", value: 1.9 }, { year: "2023", value: 2.2 }, { year: "2024", value: 2.9 }],
+    netIncome: [{ year: "2021", value: -0.5 }, { year: "2022", value: -0.4 }, { year: "2023", value: 0.2 }, { year: "2024", value: 0.5 }],
+    eps: 0.19, per: 434.1, pbr: 18.6, roe: 10.8, debtRatio: 12.4, marketCap: "$176B", dividendYield: 0,
+  },
+  HOOD: {
+    revenue: [{ year: "2021", value: 1.8 }, { year: "2022", value: 1.4 }, { year: "2023", value: 1.9 }, { year: "2024", value: 2.9 }],
+    netIncome: [{ year: "2021", value: 7.5 }, { year: "2022", value: -1.0 }, { year: "2023", value: 0.5 }, { year: "2024", value: 1.4 }],
+    eps: 0.62, per: 68.2, pbr: 3.8, roe: 9.4, debtRatio: 88.3, marketCap: "$36B", dividendYield: 0,
+  },
+  "298040": {
+    revenue: [{ year: "2021", value: 3.1 }, { year: "2022", value: 3.8 }, { year: "2023", value: 4.5 }, { year: "2024", value: 5.2 }],
+    netIncome: [{ year: "2021", value: 0.2 }, { year: "2022", value: 0.3 }, { year: "2023", value: 0.5 }, { year: "2024", value: 0.8 }],
+    eps: 32840, per: 8.6, pbr: 2.4, roe: 28.2, debtRatio: 141.2, marketCap: "약 6.9조원", dividendYield: 1.1,
+  },
+  "012330": {
+    revenue: [{ year: "2021", value: 38.2 }, { year: "2022", value: 41.7 }, { year: "2023", value: 56.8 }, { year: "2024", value: 59.4 }],
+    netIncome: [{ year: "2021", value: 2.1 }, { year: "2022", value: 1.4 }, { year: "2023", value: 3.2 }, { year: "2024", value: 3.8 }],
+    eps: 30120, per: 8.7, pbr: 0.9, roe: 10.4, debtRatio: 83.1, marketCap: "약 24.8조원", dividendYield: 2.1,
+  },
 };
 
 export const STOCK_NEWS: Record<string, NewsItem[]> = {
@@ -111,6 +131,34 @@ export const STOCK_NEWS: Record<string, NewsItem[]> = {
     { id: "3", title: "EU 경쟁당국, MS의 Teams 번들링 관행 추가 조사", source: "FT", time: "7시간 전", sentiment: "negative" },
     { id: "4", title: "OpenAI 투자 ROI 가시화…GPT-4o 탑재 오피스 365 매출 급증", source: "WSJ", time: "1일 전", sentiment: "positive" },
     { id: "5", title: "MS, 게이밍 부문 엑스박스 IP 모바일 확장 전략 발표", source: "VentureBeat", time: "2일 전", sentiment: "neutral" },
+  ],
+  PLTR: [
+    { id: "1", title: "팔란티어, 美 국방부 AI 플랫폼 계약 5억 달러 추가 수주…AIP 수요 급증", source: "Bloomberg", time: "1시간 전", sentiment: "positive" },
+    { id: "2", title: "PLTR, 상업 부문 매출 전년비 55% 성장…기업 AI 전환 수혜 가속", source: "Reuters", time: "3시간 전", sentiment: "positive" },
+    { id: "3", title: "팔란티어 CEO 알렉스 카프, 자사주 매각 계획 공시…투자심리 위축", source: "WSJ", time: "5시간 전", sentiment: "negative" },
+    { id: "4", title: "팔란티어, NATO 회원국 AI 데이터 분석 플랫폼 공급 계약 확대", source: "FT", time: "1일 전", sentiment: "positive" },
+    { id: "5", title: "S&P 500 편입 후 기관 투자자 지분 확대 지속…수급 개선 뚜렷", source: "CNBC", time: "2일 전", sentiment: "positive" },
+  ],
+  HOOD: [
+    { id: "1", title: "로빈후드, 암호화폐 거래 수수료 수익 급증…코인 강세장 수혜", source: "Bloomberg", time: "2시간 전", sentiment: "positive" },
+    { id: "2", title: "HOOD, 옵션·마진 거래 활성화로 ARPU 역대 최고치 경신", source: "CNBC", time: "4시간 전", sentiment: "positive" },
+    { id: "3", title: "SEC 규제 강화 우려…로빈후드 Payment for Order Flow 모델 압박", source: "Reuters", time: "6시간 전", sentiment: "negative" },
+    { id: "4", title: "로빈후드, 영국 시장 진출 가속…유럽 소매 투자자 공략", source: "FT", time: "1일 전", sentiment: "positive" },
+    { id: "5", title: "골드 구독 서비스 가입자 250만 돌파…수익 다각화 성과", source: "Barron's", time: "2일 전", sentiment: "positive" },
+  ],
+  "298040": [
+    { id: "1", title: "효성중공업, 초고압 변압기 美 수출 급증…IRA 수혜 지속", source: "한국경제", time: "1시간 전", sentiment: "positive" },
+    { id: "2", title: "전력망 인프라 투자 확대 기조 속 효성중공업 수주 잔고 1조 돌파", source: "매일경제", time: "3시간 전", sentiment: "positive" },
+    { id: "3", title: "효성중공업, 사우디 아람코 전력 설비 수주 추진 중", source: "연합뉴스", time: "5시간 전", sentiment: "positive" },
+    { id: "4", title: "원자재 가격 상승, 납기 지연 이슈 일부 해소…마진 개선 기대", source: "서울경제", time: "1일 전", sentiment: "neutral" },
+    { id: "5", title: "AI 데이터센터 전력 수요 폭증에 따른 중전기기 업황 개선 지속", source: "조선비즈", time: "1일 전", sentiment: "positive" },
+  ],
+  "012330": [
+    { id: "1", title: "현대모비스, 전동화 부품 매출 비중 30% 돌파…전기차 전환 성과", source: "한국경제", time: "2시간 전", sentiment: "positive" },
+    { id: "2", title: "현대차그룹 글로벌 판매 호조에 모비스 핵심부품 공급량 확대", source: "매일경제", time: "4시간 전", sentiment: "positive" },
+    { id: "3", title: "자율주행 센서 모듈 독자 개발 완료…2026년 양산 공급 예정", source: "연합뉴스", time: "6시간 전", sentiment: "positive" },
+    { id: "4", title: "중국 로컬 완성차 업체 경쟁 심화로 현지 부품 공급 물량 일부 감소", source: "서울경제", time: "1일 전", sentiment: "negative" },
+    { id: "5", title: "현대모비스 자사주 소각 계획 발표…주주환원 정책 강화", source: "조선비즈", time: "2일 전", sentiment: "positive" },
   ],
 };
 
@@ -171,25 +219,32 @@ export function getAnalystTargets(symbol: string): AnalystTarget[] {
   ];
 }
 export const STOCKS = [
-  { symbol: "AAPL", name: "Apple Inc.", price: 189.84, change: 2.34, changePct: 1.25, prediction: 78, signal: "BUY", sector: "Tech" },
-  { symbol: "NVDA", name: "NVIDIA Corp.", price: 875.35, change: 24.12, changePct: 2.83, prediction: 91, signal: "STRONG BUY", sector: "Tech" },
-  { symbol: "TSLA", name: "Tesla Inc.", price: 248.50, change: -6.20, changePct: -2.43, prediction: 42, signal: "HOLD", sector: "EV" },
-  { symbol: "MSFT", name: "Microsoft Corp.", price: 415.26, change: 3.88, changePct: 0.94, prediction: 83, signal: "BUY", sector: "Tech" },
-  { symbol: "GOOGL", name: "Alphabet Inc.", price: 175.98, change: -1.45, changePct: -0.82, prediction: 65, signal: "HOLD", sector: "Tech" },
-  { symbol: "AMZN", name: "Amazon.com Inc.", price: 198.11, change: 5.62, changePct: 2.92, prediction: 88, signal: "BUY", sector: "E-Commerce" },
-  { symbol: "META", name: "Meta Platforms", price: 512.44, change: 8.32, changePct: 1.65, prediction: 72, signal: "BUY", sector: "Social" },
-  { symbol: "005930", name: "삼성전자", price: 74800, change: -500, changePct: -0.66, prediction: 61, signal: "HOLD", sector: "반도체" },
-  { symbol: "035420", name: "NAVER", price: 182500, change: 3500, changePct: 1.96, prediction: 70, signal: "BUY", sector: "인터넷" },
-  { symbol: "000660", name: "SK하이닉스", price: 198000, change: 5000, changePct: 2.59, prediction: 85, signal: "BUY", sector: "반도체" },
+  { symbol: "AAPL",   name: "Apple Inc.",       price: 189.84,  change: 2.34,    changePct: 1.25,  prediction: 78, signal: "BUY",        sector: "Tech" },
+  { symbol: "NVDA",   name: "NVIDIA Corp.",      price: 875.35,  change: 24.12,   changePct: 2.83,  prediction: 91, signal: "STRONG BUY", sector: "Tech" },
+  { symbol: "TSLA",   name: "Tesla Inc.",        price: 248.50,  change: -6.20,   changePct: -2.43, prediction: 42, signal: "HOLD",       sector: "EV" },
+  { symbol: "MSFT",   name: "Microsoft Corp.",   price: 415.26,  change: 3.88,    changePct: 0.94,  prediction: 83, signal: "BUY",        sector: "Tech" },
+  { symbol: "GOOGL",  name: "Alphabet Inc.",     price: 175.98,  change: -1.45,   changePct: -0.82, prediction: 65, signal: "HOLD",       sector: "Tech" },
+  { symbol: "AMZN",   name: "Amazon.com Inc.",   price: 198.11,  change: 5.62,    changePct: 2.92,  prediction: 88, signal: "BUY",        sector: "E-Commerce" },
+  { symbol: "META",   name: "Meta Platforms",    price: 512.44,  change: 8.32,    changePct: 1.65,  prediction: 72, signal: "BUY",        sector: "Social" },
+  { symbol: "PLTR",   name: "Palantir Technologies", price: 82.47, change: 3.18,  changePct: 4.01,  prediction: 87, signal: "BUY",        sector: "AI/Data" },
+  { symbol: "HOOD",   name: "Robinhood Markets", price: 42.31,   change: -1.24,   changePct: -2.85, prediction: 55, signal: "HOLD",       sector: "Fintech" },
+  { symbol: "005930", name: "삼성전자",           price: 74800,   change: -500,    changePct: -0.66, prediction: 61, signal: "HOLD",       sector: "반도체" },
+  { symbol: "035420", name: "NAVER",             price: 182500,  change: 3500,    changePct: 1.96,  prediction: 70, signal: "BUY",        sector: "인터넷" },
+  { symbol: "000660", name: "SK하이닉스",         price: 198000,  change: 5000,    changePct: 2.59,  prediction: 85, signal: "BUY",        sector: "반도체" },
+  { symbol: "298040", name: "효성중공업",         price: 284000,  change: 8500,    changePct: 3.09,  prediction: 80, signal: "BUY",        sector: "중공업" },
+  { symbol: "012330", name: "현대모비스",         price: 261500,  change: -2500,   changePct: -0.95, prediction: 67, signal: "HOLD",       sector: "자동차부품" },
 ];
 
 export const INDICES = [
-  { name: "S&P 500", value: "5,234.18", change: "+0.87%", up: true },
-  { name: "NASDAQ", value: "16,384.47", change: "+1.24%", up: true },
-  { name: "KOSPI", value: "2,687.44", change: "-0.34%", up: false },
-  { name: "DOW", value: "39,127.80", change: "+0.52%", up: true },
-  { name: "NIKKEI", value: "40,168.07", change: "+0.91%", up: true },
-  { name: "VIX", value: "14.23", change: "-3.12%", up: false },
+  { name: "S&P 500",  value: "5,234.18",  change: "+0.87%", up: true  },
+  { name: "NASDAQ",   value: "16,384.47", change: "+1.24%", up: true  },
+  { name: "KOSPI",    value: "2,687.44",  change: "-0.34%", up: false },
+  { name: "KOSDAQ",   value: "876.32",    change: "+0.61%", up: true  },
+  { name: "DOW",      value: "39,127.80", change: "+0.52%", up: true  },
+  { name: "NIKKEI",   value: "40,168.07", change: "+0.91%", up: true  },
+  { name: "상해종합",  value: "3,412.88",  change: "-0.28%", up: false },
+  { name: "CSI 300",  value: "4,018.54",  change: "+0.15%", up: true  },
+  { name: "VIX",      value: "14.23",     change: "-3.12%", up: false },
 ];
 
 export function generateChartData(basePrice: number, days = 60) {
