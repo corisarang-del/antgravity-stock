@@ -32,6 +32,7 @@ const getSignalLabel = (signal: string) => {
 const SUGGESTIONS = ["NVDA", "005930", "000660", "AAPL", "298040", "PLTR"];
 
 export function StockDiagnose({ onSelectStock }: { onSelectStock?: (symbol: string) => void }) {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<typeof STOCKS>([]);
   const [diagnosed, setDiagnosed] = useState<(typeof STOCKS)[0] | null>(null);
