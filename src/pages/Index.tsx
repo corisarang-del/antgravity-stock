@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { STOCKS, generateChartData } from "@/data/stockData";
 import { AppShell } from "@/components/AppShell";
@@ -7,10 +8,10 @@ import { StockList } from "@/components/StockList";
 import { StockChart } from "@/components/StockChart";
 import { StockHeader } from "@/components/StockHeader";
 import { PredictionPanel } from "@/components/PredictionPanel";
-import { StockDiagnose } from "@/components/StockDiagnose";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Sparkles, ArrowRight } from "lucide-react";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [selectedSymbol, setSelectedSymbol] = useState("NVDA");
   const [search, setSearch] = useState("");
   const [timeframe, setTimeframe] = useState("60");
@@ -76,10 +77,26 @@ const Index = () => {
             <span className="text-sm font-semibold font-mono text-primary">{stock.symbol}</span>
           </div>
 
-          {/* ── AI 종목 진단 ─────────────────────────── */}
-          <section>
-            <StockDiagnose onSelectStock={(sym) => setSelectedSymbol(sym)} />
-          </section>
+          {/* ── AI 진단 진입 배너 ──────────────────── */}
+          <motion.button
+            onClick={() => navigate("/diagnose")}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            className="w-full glass rounded-xl p-4 border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <div className="font-bold text-sm text-foreground">이 종목, 지금 사도 될까요?</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">AI가 점수 하나로 알려드려요 — 비싼지 싼지, 성장하는지</div>
+                </div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-primary shrink-0" />
+            </div>
+          </motion.button>
 
           {/* Market Overview */}
           <section>

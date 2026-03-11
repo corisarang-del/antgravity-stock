@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import StockDetail from "./pages/StockDetail";
+import Diagnose from "./pages/Diagnose";
 import Portfolio from "./pages/Portfolio";
 import Watchlist from "./pages/Watchlist";
 import Alerts from "./pages/Alerts";
@@ -28,6 +29,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/diagnose" element={<Diagnose />} />
             <Route path="/stock/:symbol" element={<StockDetail />} />
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/watchlist" element={<Watchlist />} />
