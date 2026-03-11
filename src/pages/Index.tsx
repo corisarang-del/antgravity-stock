@@ -11,6 +11,7 @@ import { PredictionPanel } from "@/components/PredictionPanel";
 import { Menu, X, Sparkles, ArrowRight } from "lucide-react";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [selectedSymbol, setSelectedSymbol] = useState("NVDA");
   const [search, setSearch] = useState("");
   const [timeframe, setTimeframe] = useState("60");
