@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { STOCKS, generateChartData } from "@/data/stockData";
 import { AppShell } from "@/components/AppShell";
@@ -7,8 +8,7 @@ import { StockList } from "@/components/StockList";
 import { StockChart } from "@/components/StockChart";
 import { StockHeader } from "@/components/StockHeader";
 import { PredictionPanel } from "@/components/PredictionPanel";
-import { StockDiagnose } from "@/components/StockDiagnose";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Sparkles, ArrowRight } from "lucide-react";
 
 const Index = () => {
   const [selectedSymbol, setSelectedSymbol] = useState("NVDA");
