@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Brain, TrendingUp, ShieldCheck, Zap, Sparkles } from "lucide-react";
+import { Search, Brain, TrendingUp, ShieldCheck, Zap, Sparkles, ArrowRight } from "lucide-react";
 import { STOCKS } from "@/data/stockData";
 
 const getScoreColor = (score: number) => {
@@ -31,6 +32,7 @@ const getSignalLabel = (signal: string) => {
 const SUGGESTIONS = ["NVDA", "005930", "000660", "AAPL", "298040", "PLTR"];
 
 export function StockDiagnose({ onSelectStock }: { onSelectStock?: (symbol: string) => void }) {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<typeof STOCKS>([]);
   const [diagnosed, setDiagnosed] = useState<(typeof STOCKS)[0] | null>(null);
@@ -298,10 +300,18 @@ export function StockDiagnose({ onSelectStock }: { onSelectStock?: (symbol: stri
                 ))}
               </div>
 
-              {/* Disclaimer */}
-              <div className="mt-2.5 flex items-start gap-1.5">
-                <Zap className="w-3 h-3 text-warning shrink-0 mt-0.5" />
-                <span className="text-[10px] text-muted-foreground">AI 분석 참고용입니다. 실제 투자 결정 시 전문가 상담을 권장합니다.</span>
+              {/* Disclaimer + CTA */}
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <div className="flex items-start gap-1.5 flex-1">
+                  <Zap className="w-3 h-3 text-warning shrink-0 mt-0.5" />
+                  <span className="text-[10px] text-muted-foreground">AI 분석 참고용입니다. 투자 결정 시 전문가 상담 권장.</span>
+                </div>
+                <button
+                  onClick={() => navigate(`/stock/${diagnosed!.symbol}`)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shrink-0"
+                >
+                  상세 보기 <ArrowRight className="w-3 h-3" />
+                </button>
               </div>
             </div>
           </motion.div>
