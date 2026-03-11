@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Brain, TrendingUp, ShieldCheck, Zap, Sparkles } from "lucide-react";
+import { Search, Brain, TrendingUp, ShieldCheck, Zap, Sparkles, ArrowRight } from "lucide-react";
 import { STOCKS } from "@/data/stockData";
 
 const getScoreColor = (score: number) => {
