@@ -395,7 +395,7 @@
 
     "@tootallnate/once": ["@tootallnate/once@2.0.0", "", {}, "sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A=="],
 
-    "@tosspayments/tosspayments-sdk": ["@tosspayments/tosspayments-sdk@2.5.0", "", {}, "sha512-qapms+cTY5/4MBwcEegG1GkYBIWVjWv77yWnG2+CWXqdZOtGKLmqt0pb1lbrevBOF/uhO1f2Wtj+r/bggHwiHQ=="],
+    "@tosspayments/tosspayments-sdk": ["@tosspayments/tosspayments-sdk@2.6.0", "", {}, "sha512-d/9tCj5d+Jbj312bWYXo9dtGNzQaWRxTKWmw6rTwuDgw5g4mrJWV9dP9qiN6/x9PYaphbYDjxGenguHoVQXTGA=="],
 
     "@types/chai": ["@types/chai@5.2.3", "", { "dependencies": { "@types/deep-eql": "*", "assertion-error": "^2.0.1" } }, "sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA=="],
 
