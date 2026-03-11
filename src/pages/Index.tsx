@@ -7,6 +7,7 @@ import { StockList } from "@/components/StockList";
 import { StockChart } from "@/components/StockChart";
 import { StockHeader } from "@/components/StockHeader";
 import { PredictionPanel } from "@/components/PredictionPanel";
+import { StockDiagnose } from "@/components/StockDiagnose";
 import { Menu, X } from "lucide-react";
 
 const Index = () => {
