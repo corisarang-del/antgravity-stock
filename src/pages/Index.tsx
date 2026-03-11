@@ -76,6 +76,11 @@ const Index = () => {
             <span className="text-sm font-semibold font-mono text-primary">{stock.symbol}</span>
           </div>
 
+          {/* ── AI 종목 진단 ─────────────────────────── */}
+          <section>
+            <StockDiagnose onSelectStock={(sym) => setSelectedSymbol(sym)} />
+          </section>
+
           {/* Market Overview */}
           <section>
             <div className="text-xs text-muted-foreground uppercase tracking-widest mb-2 font-semibold">글로벌 시장</div>
