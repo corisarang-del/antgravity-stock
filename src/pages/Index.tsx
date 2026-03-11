@@ -7,6 +7,7 @@ import { StockList } from "@/components/StockList";
 import { StockChart } from "@/components/StockChart";
 import { StockHeader } from "@/components/StockHeader";
 import { PredictionPanel } from "@/components/PredictionPanel";
+import { StockDiagnose } from "@/components/StockDiagnose";
 import { Menu, X } from "lucide-react";
 
 const Index = () => {
@@ -74,6 +75,11 @@ const Index = () => {
             </button>
             <span className="text-sm font-semibold font-mono text-primary">{stock.symbol}</span>
           </div>
+
+          {/* ── AI 종목 진단 ─────────────────────────── */}
+          <section>
+            <StockDiagnose onSelectStock={(sym) => setSelectedSymbol(sym)} />
+          </section>
 
           {/* Market Overview */}
           <section>
