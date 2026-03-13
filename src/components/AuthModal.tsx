@@ -2,7 +2,6 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Brain, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 
 interface Props {
   onClose: () => void;
@@ -19,10 +18,11 @@ export function AuthModal({ onClose, defaultTab = "login" }: Props) {
   const handleGoogle = async () => {
     setLoading(true);
     setError(null);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
     });
-    if (result?.error) setError("Google 로그인에 실패했습니다. 다시 시도해주세요.");
+    if (error) setError("Google 로그인에 실패했습니다. 다시 시도해주세요.");
     setLoading(false);
   };
 

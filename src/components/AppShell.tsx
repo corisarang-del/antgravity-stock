@@ -86,7 +86,7 @@ export function AppShell({ children, hideTicker }: AppShellProps) {
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             aria-label="다크모드 토글"
-            className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+            className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>

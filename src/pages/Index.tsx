@@ -8,6 +8,14 @@ import { StockHeader } from "@/components/StockHeader";
 import { PredictionPanel } from "@/components/PredictionPanel";
 import { Sparkles, ArrowRight } from "lucide-react";
 
+const TIMEFRAMES = [
+  { label: "1M", value: "30" },
+  { label: "2M", value: "60" },
+  { label: "3M", value: "90" },
+];
+
+const STOCK_MAP = new Map(STOCKS.map((s) => [s.symbol, s]));
+
 const Index = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -19,14 +27,8 @@ const Index = () => {
     if (sym) setSelectedSymbol(sym);
   }, [location.state]);
 
-  const stock = STOCKS.find((s) => s.symbol === selectedSymbol) || STOCKS[0];
+  const stock = STOCK_MAP.get(selectedSymbol) ?? STOCKS[0];
   const chartData = generateChartData(stock.price, parseInt(timeframe));
-
-  const timeframes = [
-    { label: "1M", value: "30" },
-    { label: "2M", value: "60" },
-    { label: "3M", value: "90" },
-  ];
 
   return (
     <AppShell>
@@ -36,7 +38,7 @@ const Index = () => {
           onClick={() => navigate("/")}
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.99 }}
-          className="w-full glass rounded-xl p-4 border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+          className="w-full glass rounded-xl p-4 border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -67,11 +69,11 @@ const Index = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="text-xl font-semibold">{stock.symbol} 가격 차트</div>
             <div className="flex gap-1.5">
-              {timeframes.map((tf) => (
+              {TIMEFRAMES.map((tf) => (
                 <button
                   key={tf.value}
                   onClick={() => setTimeframe(tf.value)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-mono transition-all border ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-mono transition-all border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                     timeframe === tf.value
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-secondary/60 text-muted-foreground border-border/50 hover:bg-background/60"

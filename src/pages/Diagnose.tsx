@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Search, Brain, TrendingUp, ShieldCheck, Zap, Sparkles,
   ArrowRight, Target, BarChart2, Activity,
@@ -43,6 +43,8 @@ const getSignalLabel = (signal: string) => {
   return map[signal] || signal;
 };
 
+const STOCK_MAP = new Map(STOCKS.map((s) => [s.symbol, s]));
+
 const SUGGESTIONS = [
   { symbol: "NVDA", label: "NVIDIA" },
   { symbol: "005930", label: "삼성전자" },
@@ -52,7 +54,10 @@ const SUGGESTIONS = [
   { symbol: "PLTR", label: "Palantir" },
   { symbol: "MSFT", label: "Microsoft" },
   { symbol: "012330", label: "현대모비스" },
-];
+].flatMap(({ symbol, label }) => {
+  const stock = STOCK_MAP.get(symbol);
+  return stock ? [{ stock, label }] : [];
+});
 
 type Stock = (typeof STOCKS)[0];
 
@@ -97,11 +102,12 @@ function ScoreRing({ score, size = 140 }: { score: number; size?: number }) {
 /* ── Mini factor bar ──────────────────── */
 function FactorBar({ label, value, delay = 0 }: { label: string; value: number; delay?: number }) {
   const color = getScoreColor(value);
+  const shouldReduceMotion = useReducedMotion();
   return (
     <div>
       <div className="flex justify-between mb-1.5">
         <span className="text-xs text-muted-foreground">{label}</span>
-        <span className="text-xs font-mono font-bold" style={{ color }}>{value}</span>
+        <span className="text-xs font-mono font-bold tabular-nums" style={{ color }}>{value}</span>
       </div>
       <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
         <motion.div
@@ -109,7 +115,7 @@ function FactorBar({ label, value, delay = 0 }: { label: string; value: number; 
           style={{ backgroundColor: color }}
           initial={{ width: 0 }}
           animate={{ width: `${value}%` }}
-          transition={{ delay, duration: 0.8, ease: "easeOut" }}
+          transition={shouldReduceMotion ? { duration: 0 } : { delay, duration: 0.8, ease: "easeOut" }}
         />
       </div>
     </div>
@@ -217,11 +223,12 @@ export default function Diagnose() {
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <input
+                aria-label="주식 종목 검색"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onFocus={() => query && dropResults.length > 0 && setShowDrop(true)}
                 placeholder="종목명 또는 티커 검색… (삼성전자, NVDA)"
-                className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-border bg-card text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-shadow shadow-sm"
+                className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-border bg-card text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-shadow shadow-sm"
               />
             </div>
 
@@ -272,19 +279,15 @@ export default function Diagnose() {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
             >
-              {SUGGESTIONS.map(({ symbol, label }) => {
-                const s = STOCKS.find((x) => x.symbol === symbol);
-                if (!s) return null;
-                return (
-                  <button
-                    key={symbol}
-                    onClick={() => diagnose(s)}
-                    className="px-3 py-1.5 rounded-full bg-card border border-border text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all font-medium"
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+              {SUGGESTIONS.map(({ stock, label }) => (
+                <button
+                  key={stock.symbol}
+                  onClick={() => diagnose(stock)}
+                  className="px-3 py-1.5 rounded-full bg-card border border-border text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all font-medium"
+                >
+                  {label}
+                </button>
+              ))}
             </motion.div>
           )}
 
@@ -326,10 +329,10 @@ export default function Diagnose() {
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">{diagnosed.sector}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-1.5">
-                        <span className="font-mono font-semibold text-sm text-foreground">
+                        <span className="font-mono font-semibold text-sm text-foreground tabular-nums">
                           {isKorean ? `₩${diagnosed.price.toLocaleString()}` : `$${diagnosed.price.toLocaleString()}`}
                         </span>
-                        <span className={`text-xs font-mono ${diagnosed.changePct >= 0 ? "gain-text" : "loss-text"}`}>
+                        <span className={`text-xs font-mono tabular-nums ${diagnosed.changePct >= 0 ? "gain-text" : "loss-text"}`}>
                           {diagnosed.changePct >= 0 ? "+" : ""}{diagnosed.changePct.toFixed(2)}%
                         </span>
                       </div>

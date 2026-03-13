@@ -13,7 +13,7 @@ export function MarketTicker() {
             <span className="text-muted-foreground">{idx.name}</span>
             <span className="font-semibold">{idx.value}</span>
             <span className={`flex items-center gap-0.5 ${idx.up ? "gain-text" : "loss-text"}`}>
-              {idx.up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+              {idx.up ? <TrendingUp className="w-3 h-3" aria-hidden="true" /> : <TrendingDown className="w-3 h-3" aria-hidden="true" />}
               {idx.change}
             </span>
           </span>
