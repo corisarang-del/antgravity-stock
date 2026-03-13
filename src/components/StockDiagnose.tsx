@@ -115,7 +115,7 @@ export function StockDiagnose({ onSelectStock }: { onSelectStock?: (symbol: stri
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.15 }}
-              className="absolute top-full left-0 right-0 mt-1.5 z-50 glass rounded-xl overflow-hidden border border-border"
+              className="absolute top-full left-0 right-0 mt-1.5 z-[100] bg-card rounded-xl overflow-hidden border border-border shadow-lg"
             >
               {results.map((stock) => (
                 <button

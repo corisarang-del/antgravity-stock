@@ -1,21 +1,23 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { STOCKS, generateChartData } from "@/data/stockData";
 import { AppShell } from "@/components/AppShell";
-import { MarketOverview } from "@/components/MarketOverview";
-import { StockList } from "@/components/StockList";
 import { StockChart } from "@/components/StockChart";
 import { StockHeader } from "@/components/StockHeader";
 import { PredictionPanel } from "@/components/PredictionPanel";
-import { Menu, X, Sparkles, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedSymbol, setSelectedSymbol] = useState("NVDA");
-  const [search, setSearch] = useState("");
   const [timeframe, setTimeframe] = useState("60");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const sym = (location.state as { symbol?: string } | null)?.symbol;
+    if (sym) setSelectedSymbol(sym);
+  }, [location.state]);
 
   const stock = STOCKS.find((s) => s.symbol === selectedSymbol) || STOCKS[0];
   const chartData = generateChartData(stock.price, parseInt(timeframe));
@@ -28,141 +30,78 @@ const Index = () => {
 
   return (
     <AppShell>
-      <div className="flex overflow-hidden" style={{ height: "calc(100vh - 112px)" }}>
-        {/* Sidebar - Stock List */}
-        <aside
-          className={`
-            ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-            fixed md:relative z-30 md:z-auto top-0 left-0 h-full
-            w-72 border-r border-border shrink-0
-            transition-transform duration-300 bg-background md:bg-transparent
-            flex flex-col
-          `}
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 space-y-6">
+        {/* AI 진단 진입 배너 */}
+        <motion.button
+          onClick={() => navigate("/")}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          className="w-full glass rounded-xl p-4 border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
         >
-          {/* Mobile close btn */}
-          <div className="md:hidden flex items-center justify-between px-4 pt-4 pb-2">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">종목 목록</span>
-            <button onClick={() => setSidebarOpen(false)} className="text-muted-foreground">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="flex-1 overflow-hidden flex flex-col p-3">
-            <StockList
-              selectedSymbol={selectedSymbol}
-              onSelect={(sym) => { setSelectedSymbol(sym); setSidebarOpen(false); }}
-              search={search}
-              onSearchChange={setSearch}
-            />
-          </div>
-        </aside>
-
-        {/* Mobile overlay */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 z-20 bg-background/80 md:hidden backdrop-blur-sm"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Center - Chart Area */}
-        <main className="flex-1 overflow-y-auto p-3 md:p-4 space-y-4">
-          {/* Mobile sidebar trigger */}
-          <div className="md:hidden flex items-center gap-2">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-sm text-muted-foreground"
-            >
-              <Menu className="w-4 h-4" /> 종목 선택
-            </button>
-            <span className="text-sm font-semibold font-mono text-primary">{stock.symbol}</span>
-          </div>
-
-          {/* ── AI 진단 진입 배너 ──────────────────── */}
-          <motion.button
-            onClick={() => navigate("/diagnose")}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-            className="w-full glass rounded-xl p-4 border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <div className="font-bold text-sm text-foreground">이 종목, 지금 사도 될까요?</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">AI가 점수 하나로 알려드려요 — 비싼지 싼지, 성장하는지</div>
-                </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 text-primary" />
               </div>
-              <ArrowRight className="w-4 h-4 text-primary shrink-0" />
-            </div>
-          </motion.button>
-
-          {/* Market Overview */}
-          <section>
-            <div className="text-xs text-muted-foreground uppercase tracking-widest mb-2 font-semibold">글로벌 시장</div>
-            <MarketOverview />
-          </section>
-
-          {/* Stock Header */}
-          <StockHeader
-            symbol={stock.symbol}
-            name={stock.name}
-            price={stock.price}
-            change={stock.change}
-            changePct={stock.changePct}
-            sector={stock.sector}
-          />
-
-          {/* Chart */}
-          <div className="glass rounded-xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-semibold">{stock.symbol} 가격 차트</div>
-              <div className="flex gap-1">
-                {timeframes.map((tf) => (
-                  <button
-                    key={tf.value}
-                    onClick={() => setTimeframe(tf.value)}
-                    className={`px-3 py-1 rounded text-xs font-mono transition-all ${
-                      timeframe === tf.value
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-muted-foreground hover:bg-secondary/80"
-                    }`}
-                  >
-                    {tf.label}
-                  </button>
-                ))}
+              <div>
+                <div className="font-bold text-base text-foreground">이 종목, 지금 사도 될까요?</div>
+                <div className="text-sm text-muted-foreground mt-0.5">AI가 점수 하나로 알려드려요 — 비싼지 싼지, 성장하는지</div>
               </div>
             </div>
-            <div className="flex gap-4 mb-3 text-xs">
-              <div className="flex items-center gap-1.5">
-                <div className={`w-3 h-0.5 rounded ${stock.changePct >= 0 ? "bg-gain" : "bg-loss"}`} />
-                <span className="text-muted-foreground">실제 가격</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-0.5 rounded bg-primary" style={{ backgroundImage: "repeating-linear-gradient(90deg, hsl(185,100%,50%) 0, hsl(185,100%,50%) 4px, transparent 4px, transparent 7px)" }} />
-                <span className="text-muted-foreground">AI 예측</span>
-              </div>
-            </div>
-            <div className="h-64 md:h-80">
-              <StockChart data={chartData} symbol={stock.symbol} isGain={stock.changePct >= 0} />
+            <ArrowRight className="w-5 h-5 text-primary shrink-0" />
+          </div>
+        </motion.button>
+
+        {/* Stock Header */}
+        <StockHeader
+          symbol={stock.symbol}
+          name={stock.name}
+          price={stock.price}
+          change={stock.change}
+          changePct={stock.changePct}
+          sector={stock.sector}
+        />
+
+        {/* Chart */}
+        <div className="glass rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-xl font-semibold">{stock.symbol} 가격 차트</div>
+            <div className="flex gap-1.5">
+              {timeframes.map((tf) => (
+                <button
+                  key={tf.value}
+                  onClick={() => setTimeframe(tf.value)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-mono transition-all border ${
+                    timeframe === tf.value
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-secondary/60 text-muted-foreground border-border/50 hover:bg-background/60"
+                  }`}
+                >
+                  {tf.label}
+                </button>
+              ))}
             </div>
           </div>
-        </main>
-
-        {/* Right Panel - Prediction */}
-        <aside className="hidden lg:block w-80 shrink-0 border-l border-border overflow-y-auto">
-          <div className="p-4 space-y-4">
-            <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">AI 분석</div>
-            <PredictionPanel score={stock.prediction} signal={stock.signal} symbol={stock.symbol} />
+          <div className="flex gap-4 mb-4 text-sm">
+            <div className="flex items-center gap-1.5">
+              <div className={`w-3 h-0.5 rounded ${stock.changePct >= 0 ? "bg-gain" : "bg-loss"}`} />
+              <span className="text-muted-foreground">실제 가격</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-0.5 rounded bg-primary" style={{ backgroundImage: "repeating-linear-gradient(90deg, hsl(185,100%,50%) 0, hsl(185,100%,50%) 4px, transparent 4px, transparent 7px)" }} />
+              <span className="text-muted-foreground">AI 예측</span>
+            </div>
           </div>
-        </aside>
-      </div>
+          <div className="h-72 md:h-96">
+            <StockChart data={chartData} symbol={stock.symbol} isGain={stock.changePct >= 0} />
+          </div>
+        </div>
 
-      {/* Mobile Prediction */}
-      <div className="lg:hidden px-3 pb-4">
-        <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-3">AI 분석</div>
-        <PredictionPanel score={stock.prediction} signal={stock.signal} symbol={stock.symbol} />
+        {/* Prediction Panel */}
+        <div className="glass rounded-xl p-5">
+          <div className="text-xl font-semibold mb-4">AI 분석</div>
+          <PredictionPanel score={stock.prediction} signal={stock.signal} symbol={stock.symbol} />
+        </div>
       </div>
     </AppShell>
   );

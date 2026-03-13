@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Brain, TrendingUp, ShieldCheck, Zap, Sparkles,
-  ArrowRight, ArrowLeft, Target, BarChart2, Activity,
+  ArrowRight, Target, BarChart2, Activity,
 } from "lucide-react";
 import { STOCKS } from "@/data/stockData";
-import { MarketTicker } from "@/components/MarketOverview";
+import { AppShell } from "@/components/AppShell";
 import antCharacter from "@/assets/ant_character.png";
 
 /* ── helpers ─────────────────────────────── */
@@ -125,8 +125,10 @@ export default function Diagnose() {
   const [diagnosed, setDiagnosed] = useState<Stock | null>(null);
   const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const skipDropRef = useRef(false);
 
   useEffect(() => {
+    if (skipDropRef.current) { skipDropRef.current = false; setShowDrop(false); return; }
     const q = query.trim().toLowerCase();
     if (!q) { setDropResults([]); setShowDrop(false); return; }
     const f = STOCKS.filter(s =>
@@ -148,6 +150,7 @@ export default function Diagnose() {
   }, []);
 
   const diagnose = (stock: Stock) => {
+    skipDropRef.current = true;
     setQuery(stock.name);
     setShowDrop(false);
     setDiagnosed(null);
@@ -156,7 +159,7 @@ export default function Diagnose() {
   };
 
   const goToDetail = () => {
-    if (diagnosed) navigate(`/stock/${diagnosed.symbol}`);
+    if (diagnosed) navigate("/home", { state: { symbol: diagnosed.symbol } });
   };
 
   const scoreColor = diagnosed ? getScoreColor(diagnosed.prediction) : "hsl(178,58%,40%)";
@@ -174,23 +177,9 @@ export default function Diagnose() {
   ] : [];
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* Ticker */}
-      <MarketTicker />
-
-      {/* Back button */}
-      <div className="px-4 md:px-8 pt-4">
-        <button
-          onClick={() => navigate("/")}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          홈으로
-        </button>
-      </div>
-
+    <AppShell>
       {/* ── Hero ─────────────────────────── */}
-      <main className="flex-1 flex flex-col items-center justify-start px-4 pt-10 pb-20 md:pt-16">
+      <div className="flex flex-col items-center justify-start px-4 pt-10 pb-20 md:pt-16">
         <motion.div
           className="w-full max-w-lg"
           initial={{ opacity: 0, y: 24 }}
@@ -244,7 +233,7 @@ export default function Diagnose() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -6 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute top-full left-0 right-0 mt-1.5 z-50 glass rounded-2xl overflow-hidden border border-border shadow-lg"
+                  className="absolute top-full left-0 right-0 mt-1.5 z-[100] bg-card rounded-2xl overflow-hidden border border-border shadow-lg"
                 >
                   {dropResults.map((stock) => (
                     <button
@@ -445,7 +434,7 @@ export default function Diagnose() {
             )}
           </AnimatePresence>
         </motion.div>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }

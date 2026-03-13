@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;1,700&display=swap');
 
 @layer base {
   :root {
@@ -82,6 +82,41 @@
 }
 
 @layer base {
+  .dark {
+    --background: 220 22% 9%;
+    --foreground: 180 15% 92%;
+    --card: 220 20% 12%;
+    --card-foreground: 180 15% 92%;
+    --popover: 220 20% 12%;
+    --popover-foreground: 180 15% 92%;
+    --primary: 178 80% 45%;
+    --primary-foreground: 220 22% 9%;
+    --secondary: 220 18% 18%;
+    --secondary-foreground: 180 15% 85%;
+    --muted: 220 18% 16%;
+    --muted-foreground: 220 12% 58%;
+    --accent: 38 88% 52%;
+    --accent-foreground: 220 22% 9%;
+    --destructive: 350 72% 54%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 18% 22%;
+    --input: 220 18% 20%;
+    --ring: 178 80% 45%;
+    --gain: 162 65% 45%;
+    --gain-foreground: 220 22% 9%;
+    --loss: 350 72% 60%;
+    --loss-foreground: 220 22% 9%;
+    --warning: 38 88% 52%;
+    --chart-grid: 220 18% 20%;
+    --glass-bg: 220 20% 13%;
+    --glass-border: 220 18% 22%;
+    --gradient-primary: linear-gradient(135deg, hsl(178 80% 45%), hsl(200 80% 55%));
+    --shadow-glow: 0 0 32px hsl(178 80% 45% / 0.25);
+    --shadow-card: 0 2px 16px hsl(220 40% 5% / 0.4);
+  }
+}
+
+@layer base {
   * {
     @apply border-border;
   }
@@ -103,6 +138,10 @@
 
   .mono {
     font-family: 'JetBrains Mono', monospace;
+  }
+
+  .font-logo {
+    font-family: 'Playfair Display', serif;
   }
 }
 

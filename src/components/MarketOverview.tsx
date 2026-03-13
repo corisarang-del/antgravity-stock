@@ -9,7 +9,7 @@ export function MarketTicker() {
     <div className="border-b border-border bg-secondary/40 overflow-hidden py-2">
       <div className="flex animate-ticker whitespace-nowrap gap-8">
         {doubled.map((idx, i) => (
-          <span key={i} className="inline-flex items-center gap-2 px-4 text-sm font-mono shrink-0">
+          <span key={`${idx.name}-${i}`} className="inline-flex items-center gap-2 px-4 text-sm font-mono shrink-0">
             <span className="text-muted-foreground">{idx.name}</span>
             <span className="font-semibold">{idx.value}</span>
             <span className={`flex items-center gap-0.5 ${idx.up ? "gain-text" : "loss-text"}`}>

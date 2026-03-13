@@ -31,7 +31,10 @@ export function StockList({ selectedSymbol, onSelect, search, onSearchChange }: 
         <div className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">종목 목록</div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <label htmlFor="stock-search" className="sr-only">종목 검색</label>
           <input
+            id="stock-search"
+            aria-label="종목 검색"
             className="w-full bg-secondary border border-border rounded-lg pl-9 pr-3 py-2 text-sm outline-none focus:border-primary transition-colors"
             placeholder="종목 검색..."
             value={search}

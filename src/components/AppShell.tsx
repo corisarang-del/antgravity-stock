@@ -1,7 +1,8 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, BookOpen, Lightbulb, Zap } from "lucide-react";
+import { Home, BookOpen, Lightbulb, Zap, Sun, Moon } from "lucide-react";
+import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserMenu } from "@/components/UserMenu";
 import { MarketTicker } from "@/components/MarketOverview";
@@ -9,7 +10,7 @@ import { AuthModal } from "@/components/AuthModal";
 import antCharacter from "@/assets/ant_character.png";
 
 const TABS = [
-  { path: "/",        label: "홈",          icon: Home },
+  { path: "/home",    label: "홈",          icon: Home },
   { path: "/diary",   label: "개미의 일기",  icon: BookOpen },
   { path: "/tips",    label: "꿀팁정보",    icon: Lightbulb },
   { path: "/upgrade", label: "업그레이드",  icon: Zap },
@@ -24,9 +25,9 @@ export function AppShell({ children, hideTicker }: AppShellProps) {
   const { user } = useAuth();
   const location = useLocation();
   const [showAuth, setShowAuth] = useState(false);
+  const { theme, setTheme } = useTheme();
 
-  const isActive = (path: string) =>
-    path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+  const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -43,7 +44,7 @@ export function AppShell({ children, hideTicker }: AppShellProps) {
           </motion.div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold gradient-text-primary text-lg tracking-tight leading-none">AntGravity</span>
+              <span className="font-bold font-logo italic gradient-text-primary text-lg tracking-tight leading-none">AntGravity</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-mono hidden sm:inline">PRO</span>
             </div>
             <div className="text-[10px] text-muted-foreground hidden sm:block leading-none mt-0.5">개미들의 AI 투자 플랫폼</div>
@@ -51,14 +52,14 @@ export function AppShell({ children, hideTicker }: AppShellProps) {
         </Link>
 
         {/* Desktop Tab Nav */}
-        <nav className="hidden md:flex items-center gap-1 bg-secondary/60 rounded-xl p-1">
+        <nav className="hidden md:flex items-center gap-2 bg-secondary/60 rounded-xl p-1">
           {TABS.map(({ path, label, icon: Icon }) => {
             const active = isActive(path);
             return (
               <Link key={path} to={path}>
                 <motion.div
                   className={`relative flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                    active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                   }`}
                 >
                   {active && (
@@ -82,6 +83,13 @@ export function AppShell({ children, hideTicker }: AppShellProps) {
             <div className="w-2 h-2 rounded-full bg-gain animate-pulse-glow" />
             <span className="text-xs text-muted-foreground">실시간</span>
           </div>
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            aria-label="다크모드 토글"
+            className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+          >
+            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
           {user ? (
             <UserMenu />
           ) : (
@@ -111,7 +119,7 @@ export function AppShell({ children, hideTicker }: AppShellProps) {
             return (
               <Link key={path} to={path} className="flex-1">
                 <div className="flex flex-col items-center gap-0.5 py-1">
-                  {path === "/" && active ? (
+                  {path === "/home" && active ? (
                     /* Use ant character for home tab when active */
                     <div className="relative w-9 h-9 flex items-center justify-center">
                       <motion.div layoutId="mobile-tab-indicator" className="absolute inset-0 bg-primary/15 rounded-xl" transition={{ type: "spring", stiffness: 380, damping: 30 }} />

@@ -53,7 +53,7 @@ const Portfolio = () => {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors items-center gap-1.5 hidden sm:flex">
+          <Link to="/home" className="text-sm text-muted-foreground hover:text-foreground transition-colors items-center gap-1.5 hidden sm:flex">
             <BarChart2 className="w-4 h-4" /> 마켓
           </Link>
           {user ? (

@@ -165,7 +165,7 @@ const Upgrade = () => {
                 showCancelConfirm ? (
                   <div className="flex gap-2">
                     <button onClick={handleCancel} disabled={loading}
-                      className="flex-1 py-2.5 rounded-xl bg-loss text-white text-xs font-semibold hover:bg-loss/90 transition-colors disabled:opacity-50">
+                      className="flex-1 py-2.5 rounded-xl bg-loss text-loss-foreground text-xs font-semibold hover:bg-loss/90 transition-colors disabled:opacity-50">
                       {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : "구독 취소 확인"}
                     </button>
                     <button onClick={() => setShowCancelConfirm(false)}
