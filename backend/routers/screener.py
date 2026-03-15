@@ -15,6 +15,10 @@ class ScreenerRequest(BaseModel):
     strategies: list[str] = Field(default=["high_score"])
     combination: Literal["AND", "OR"] = "AND"
     market: Literal["all", "KR", "US"] = "all"
+    per_max: float | None = Field(default=None, ge=0, le=1000)
+    pbr_max: float | None = Field(default=None, ge=0, le=100)
+    market_cap_min: float | None = Field(default=None, ge=0)
+    change_pct_min: float | None = Field(default=None, ge=-100, le=100)
 
 
 @router.post("/screener")
@@ -24,6 +28,10 @@ async def screener(req: ScreenerRequest):
         strategies=req.strategies,
         combination=req.combination,
         market=req.market,
+        per_max=req.per_max,
+        pbr_max=req.pbr_max,
+        market_cap_min=req.market_cap_min,
+        change_pct_min=req.change_pct_min,
     )
 
 
