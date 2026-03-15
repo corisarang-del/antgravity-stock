@@ -5,8 +5,6 @@ import { Search, Loader2 } from "lucide-react";
 import { useScreener } from "@/hooks/useScreener";
 
 const STRATEGIES: { key: string; label: string; desc: string }[] = [
-  { key: "warren_buffett", label: "워런 버핏", desc: "ROE ≥15%, 부채비율 ≤0.5" },
-  { key: "peter_lynch", label: "피터 린치", desc: "PEG ≤1.5, 수익성장 ≥15%" },
   { key: "momentum", label: "모멘텀", desc: "수익성장 ≥25%, 매출성장 ≥20%" },
   { key: "value", label: "가치투자", desc: "PBR ≤2, PER ≤20" },
   { key: "quality", label: "품질주", desc: "ROE ≥20%, 영업마진 ≥15%" },

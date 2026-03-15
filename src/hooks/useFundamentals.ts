@@ -5,7 +5,7 @@ export function useFundamentals(symbol: string) {
   return useQuery<Fundamentals>({
     queryKey: ["fundamentals", symbol],
     queryFn: () => fetchFundamentals(symbol),
-    staleTime: 30 * 60 * 1000, // 30분
+    staleTime: 8 * 60 * 60 * 1000, // 8시간 — 재무데이터는 하루 1~2회만 갱신
     enabled: Boolean(symbol),
   });
 }

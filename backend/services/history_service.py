@@ -2,7 +2,7 @@
 
 - KR 종목: dartlab Company().BS, Income Statement 기반
 - US 종목: yfinance Ticker().financials, balance_sheet, cashflow
-- 24시간 TTL 캐시
+- Read 우선순위: TtlCache(인메모리) → Supabase → 외부API
 """
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from typing import Any
 import yfinance as yf
 
 from services.runtime_cache import TtlCache
+import services.financials_cache_service as db_cache
 
 _HISTORY_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=86400)
 
@@ -125,13 +126,21 @@ def _fetch_kr_history(symbol: str) -> dict[str, Any]:
 
 
 def get_financial_history(symbol: str) -> dict[str, Any]:
+    # 1. 인메모리 TtlCache
     cached = _HISTORY_CACHE.get(symbol)
     if cached is not None:
         return cached
 
+    # 2. Supabase (25h 이내 데이터)
+    db_data = db_cache.read_history(symbol)
+    if db_data is not None:
+        return _HISTORY_CACHE.set(symbol, db_data)
+
+    # 3. 외부 API (dartlab / yfinance) → Supabase + TtlCache 저장
     if symbol in _KR_CORP_CODE:
         data = _fetch_kr_history(symbol)
     else:
         data = _fetch_us_history(symbol)
 
+    db_cache.write_history(symbol, data)
     return _HISTORY_CACHE.set(symbol, data)

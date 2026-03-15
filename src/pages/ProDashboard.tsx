@@ -1,7 +1,7 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Lock, BarChart2, Star, TrendingUp, DollarSign, BookOpen, Loader2 } from "lucide-react";
+import { Lock, BarChart2, Star, TrendingUp, DollarSign, BookOpen, Loader2, Search, X } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AiScreener } from "@/components/AiScreener";
 import { InvestmentScoreCard } from "@/components/InvestmentScoreCard";
@@ -9,6 +9,7 @@ import { FundamentalsGrid } from "@/components/FundamentalsGrid";
 import { HistoricalTable } from "@/components/HistoricalTable";
 import { DividendCalendar } from "@/components/DividendCalendar";
 import { ProTopRanking } from "@/components/ProTopRanking";
+import { ProAllTickers } from "@/components/ProAllTickers";
 
 // Rule 2.4: Recharts Treemap는 무거운 컴포넌트 → 탭 전환 시에만 로드
 const SectorHeatmap = lazy(() =>
@@ -17,7 +18,7 @@ const SectorHeatmap = lazy(() =>
 import { useSubscription } from "@/hooks/useSubscription";
 import { fetchFundamentals, type Fundamentals } from "@/lib/apiClient";
 
-// 14개 종목 목록 (backend/data/pipeline.py TICKERS 동기화)
+// 전체 종목 목록 (backend/data/pipeline.py TICKERS 동기화)
 const TICKERS: Record<string, { name: string; market: string }> = {
   "005930.KS": { name: "삼성전자", market: "KR" },
   "000660.KS": { name: "SK하이닉스", market: "KR" },
@@ -31,6 +32,8 @@ const TICKERS: Record<string, { name: string; market: string }> = {
   "MSFT":      { name: "마이크로소프트", market: "US" },
   "PLTR":      { name: "팔란티어", market: "US" },
   "HOOD":      { name: "로빈후드", market: "US" },
+  "SPY":       { name: "S&P 500 ETF", market: "US" },
+  "VOO":       { name: "Vanguard ETF", market: "US" },
 };
 
 const TABS = [
@@ -43,11 +46,18 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-// TICKERS 심볼 목록 (프론트에서 직접 참조)
-const ALL_SYMBOLS = Object.keys(TICKERS ?? {});
+// Rule 6.3 rendering-hoist-jsx: 상수에서 파생된 값은 컴포넌트 외부로 호이스팅
+// (TICKERS가 모듈 상수이므로 매 렌더마다 재생성할 필요 없음)
+const ALL_SYMBOLS = Object.keys(TICKERS);
+const TICKER_NAMES: Record<string, string> = Object.fromEntries(
+  ALL_SYMBOLS.map((s) => [s, TICKERS[s].name])
+);
 
 function ProGate({ children }: { children: React.ReactNode }) {
   const { isPro, loading } = useSubscription();
+
+  // 개발 환경에서는 Pro 게이트 우회 (빌드 시 dead code로 제거됨)
+  if (import.meta.env.DEV) return <>{children}</>;
 
   if (loading) {
     return (
@@ -82,6 +92,88 @@ function ProGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// 종목 서치 컴포넌트
+function TickerSearch({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (symbol: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const filtered = query.trim()
+    ? ALL_SYMBOLS.filter((s) => {
+        const q = query.toLowerCase();
+        return s.toLowerCase().includes(q) || TICKER_NAMES[s].toLowerCase().includes(q);
+      })
+    : ALL_SYMBOLS;
+
+  // 외부 클릭 시 닫기
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  function select(symbol: string) {
+    onChange(symbol);
+    setQuery("");
+    setOpen(false);
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-secondary/50 focus-within:border-primary/50 focus-within:bg-secondary transition-colors">
+        <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+        <input
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground min-w-0"
+          placeholder={`${TICKER_NAMES[value] || value} 검색...`}
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+        />
+        {query && (
+          <button onClick={() => setQuery("")}>
+            <X className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+          </button>
+        )}
+        {/* 현재 선택 종목 뱃지 */}
+        {!query && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-semibold shrink-0">
+            {value}
+          </span>
+        )}
+      </div>
+
+      {open && (
+        <div className="absolute z-50 top-full mt-1 w-full max-h-60 overflow-y-auto rounded-xl border border-border bg-background shadow-lg">
+          {filtered.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">검색 결과 없음</p>
+          ) : (
+            filtered.map((s) => (
+              <button
+                key={s}
+                onClick={() => select(s)}
+                className={`w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-secondary transition-colors ${
+                  s === value ? "bg-primary/10" : ""
+                }`}
+              >
+                <span className="text-sm font-semibold">{TICKER_NAMES[s]}</span>
+                <span className="text-xs text-muted-foreground font-mono">{s}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProDashboard() {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [selectedSymbol, setSelectedSymbol] = useState(ALL_SYMBOLS[0] ?? "NVDA");
@@ -99,20 +191,16 @@ export default function ProDashboard() {
       });
       return map;
     },
-    staleTime: 30 * 60 * 1000,
+    staleTime: 8 * 60 * 60 * 1000, // 8시간 — 재무데이터는 장중 변동 없음
     enabled: activeTab === "overview",
   });
 
   const selectedFund = useQuery({
     queryKey: ["fundamentals", selectedSymbol],
     queryFn: () => fetchFundamentals(selectedSymbol),
-    staleTime: 30 * 60 * 1000,
+    staleTime: 8 * 60 * 60 * 1000,
     enabled: activeTab === "fundamentals",
   });
-
-  const names = Object.fromEntries(
-    ALL_SYMBOLS.map((s) => [s, TICKERS?.[s]?.name ?? s])
-  );
 
   return (
     <AppShell hideTicker>
@@ -158,7 +246,17 @@ export default function ProDashboard() {
                   <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                 </div>
               ) : fundQueries.data ? (
-                <ProTopRanking fundamentalsMap={fundQueries.data} names={names} />
+                <>
+                  <ProTopRanking fundamentalsMap={fundQueries.data} names={TICKER_NAMES} />
+                  <ProAllTickers
+                    fundamentalsMap={fundQueries.data}
+                    names={TICKER_NAMES}
+                    onSelect={(symbol) => {
+                      setSelectedSymbol(symbol);
+                      setActiveTab("fundamentals");
+                    }}
+                  />
+                </>
               ) : null}
             </div>
           )}
@@ -173,22 +271,8 @@ export default function ProDashboard() {
 
           {activeTab === "fundamentals" && (
             <div className="space-y-5">
-              {/* 종목 선택 */}
-              <div className="flex flex-wrap gap-1.5">
-                {ALL_SYMBOLS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setSelectedSymbol(s)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                      selectedSymbol === s
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-secondary text-muted-foreground border-border hover:bg-secondary/70"
-                    }`}
-                  >
-                    {names[s] || s}
-                  </button>
-                ))}
-              </div>
+              {/* 종목 검색 */}
+              <TickerSearch value={selectedSymbol} onChange={setSelectedSymbol} />
 
               {selectedFund.isLoading ? (
                 <div className="flex items-center justify-center py-16">

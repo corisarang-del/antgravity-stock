@@ -1,7 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { TrendingUp, TrendingDown, Star } from "lucide-react";
 import type { Fundamentals } from "@/lib/apiClient";
+
+// Rule 6.3 rendering-hoist-jsx: 포맷터는 컴포넌트 외부로 호이스팅 (매 렌더마다 재생성 방지)
+const pctFmt = (v: number) => `${(v * 100).toFixed(1)}%`;
+const scoreFmt = (v: number) => String(v);
 
 interface RankItem {
   symbol: string;
@@ -48,20 +53,28 @@ function RankRow({ rank, item, formatFn }: { rank: number; item: RankItem; forma
 }
 
 export function ProTopRanking({ fundamentalsMap, names }: Props) {
-  const gainers = topN(fundamentalsMap, names, "earnings_growth", 5, true);
-  const losers = topN(fundamentalsMap, names, "earnings_growth", 5, false);
-  const topScores = Object.entries(fundamentalsMap)
-    .map(([symbol, f]) => ({
-      symbol,
-      name: names[symbol] || symbol,
-      value: f.score.total,
-      formatted: "",
-    }))
-    .toSorted((a, b) => b.value - a.value)
-    .slice(0, 5);
-
-  const pctFmt = (v: number) => `${(v * 100).toFixed(1)}%`;
-  const scoreFmt = (v: number) => String(v);
+  // Rule 5.2 rerender-memo: fundamentalsMap/names 변경 시에만 재계산
+  const gainers = useMemo(
+    () => topN(fundamentalsMap, names, "earnings_growth", 5, true),
+    [fundamentalsMap, names]
+  );
+  const losers = useMemo(
+    () => topN(fundamentalsMap, names, "earnings_growth", 5, false),
+    [fundamentalsMap, names]
+  );
+  const topScores = useMemo(
+    () =>
+      Object.entries(fundamentalsMap)
+        .map(([symbol, f]) => ({
+          symbol,
+          name: names[symbol] || symbol,
+          value: f.score.total,
+          formatted: "",
+        }))
+        .toSorted((a, b) => b.value - a.value)
+        .slice(0, 5),
+    [fundamentalsMap, names]
+  );
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

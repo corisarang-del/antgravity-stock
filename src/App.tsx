@@ -20,7 +20,14 @@ import PaymentFail from "./pages/PaymentFail";
 import ProDashboard from "./pages/ProDashboard";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // 컴포넌트 언마운트 후 24시간 캐시 유지 (탭 전환 시 재요청 방지)
+      gcTime: 24 * 60 * 60 * 1000,
+    },
+  },
+});
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem>

@@ -3,7 +3,7 @@
 - KR 종목: dartlab Company().ratios (정규화된 재무)
 - US 종목: yfinance Ticker().info
 - Investment Score 5카테고리 계산
-- 30분 TTL 인메모리 캐시
+- Read 우선순위: TtlCache(인메모리) → Supabase → 외부API
 """
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from typing import Any
 import yfinance as yf
 
 from services.runtime_cache import TtlCache
+import services.financials_cache_service as db_cache
 
 # ──────────────────────────────────────────────
 # KR 종목 → DART corp_code 매핑
@@ -290,13 +291,21 @@ def _kr_fallback_via_yfinance(symbol: str) -> dict[str, Any]:
 # Public API
 # ──────────────────────────────────────────────
 def get_fundamentals(symbol: str) -> dict[str, Any]:
+    # 1. 인메모리 TtlCache
     cached = _FUND_CACHE.get(symbol)
     if cached is not None:
         return cached
 
+    # 2. Supabase (25h 이내 데이터)
+    db_data = db_cache.read_fundamentals(symbol)
+    if db_data is not None:
+        return _FUND_CACHE.set(symbol, db_data)
+
+    # 3. 외부 API (dartlab / yfinance) → Supabase + TtlCache 저장
     if symbol in _KR_CORP_CODE:
         data = _fetch_kr_fundamentals(symbol)
     else:
         data = _fetch_us_fundamentals(symbol)
 
+    db_cache.write_fundamentals(symbol, data)
     return _FUND_CACHE.set(symbol, data)

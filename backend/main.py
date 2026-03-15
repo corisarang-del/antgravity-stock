@@ -9,6 +9,7 @@ from core.config import settings
 from data.pipeline import MARKET_TICKER_SYMBOLS, TICKERS
 from routers import dashboard, dividends, predict, screener, sectors, sentiment, stocks, tips
 from services.market_snapshot_service import MarketSnapshotService
+from services.cache_warmer import start_scheduler, stop_scheduler, warm_all_from_supabase
 
 
 def _warmup_caches() -> None:
@@ -28,10 +29,20 @@ def _warmup_caches() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 블로킹 작업을 스레드풀에서 실행해 이벤트 루프 차단 방지
+    # 1. APScheduler 시작 (매일 KST 07:00 재워밍 등록)
+    start_scheduler()
+
+    # 2. 블로킹 캐시 워밍은 스레드풀에서 (이벤트 루프 차단 방지)
     loop = asyncio.get_running_loop()
     loop.run_in_executor(None, _warmup_caches)
+
+    # 3. Supabase → TtlCache 워밍 (비동기, cold start 지연 방지)
+    asyncio.create_task(warm_all_from_supabase())
+
     yield
+
+    # 4. 종료 시 스케줄러 정리
+    stop_scheduler()
 
 
 app = FastAPI(
