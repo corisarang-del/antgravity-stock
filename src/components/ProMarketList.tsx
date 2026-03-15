@@ -94,6 +94,7 @@ export function ProMarketList({ onSelect }: Props) {
             <input
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground min-w-0"
               placeholder="종목명·심볼 검색"
+              aria-label="종목명 또는 심볼로 검색"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}

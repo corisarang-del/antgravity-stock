@@ -1,6 +1,8 @@
 """GET /api/stocks/dividends/calendar"""
 from __future__ import annotations
 
+import asyncio
+import logging
 from collections import defaultdict
 from typing import Any
 
@@ -10,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Query
 from data.pipeline import TICKERS
 from services.runtime_cache import TtlCache
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _DIV_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=86400)
@@ -33,7 +36,7 @@ def _fetch_dividend_events(symbol: str, year: int, month: int) -> list[dict[str,
                         "name": meta.get("name", symbol),
                         "market": meta.get("market", "US"),
                         "ex_date": ts.date().isoformat(),
-                        "pay_date": None,  # yfinance는 pay_date 제공 안 함
+                        "pay_date": None,
                         "amount": round(float(amount), 4),
                         "yield": None,
                     })
@@ -42,17 +45,8 @@ def _fetch_dividend_events(symbol: str, year: int, month: int) -> list[dict[str,
         return []
 
 
-@router.get("/dividends/calendar")
-async def dividend_calendar(
-    year: int = Query(default=2026),
-    month: int = Query(default=3, ge=1, le=12),
-):
-    """월별 배당 캘린더 (24시간 TTL 캐시)"""
-    cache_key = f"{year}-{month:02d}"
-    cached = _DIV_CACHE.get(cache_key)
-    if cached is not None:
-        return cached
-
+def _compute_dividend_calendar(year: int, month: int) -> dict[str, Any]:
+    """배당 캘린더 계산 (blocking I/O - executor에서 실행)"""
     calendar: dict[str, list] = defaultdict(list)
 
     for symbol in TICKERS:
@@ -71,8 +65,24 @@ async def dividend_calendar(
         for date, items in sorted(calendar.items())
     ]
 
-    result = {"calendar": dict(calendar), "summary": summary}
+    return {"calendar": dict(calendar), "summary": summary}
+
+
+@router.get("/dividends/calendar")
+async def dividend_calendar(
+    year: int = Query(default=2026),
+    month: int = Query(default=3, ge=1, le=12),
+):
+    """월별 배당 캘린더 (24시간 TTL 캐시)"""
+    cache_key = f"{year}-{month:02d}"
+    cached = _DIV_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
     try:
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(None, _compute_dividend_calendar, year, month)
         return _DIV_CACHE.set(cache_key, result)
     except Exception as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        logger.exception("배당 캘린더 조회 실패")
+        raise HTTPException(status_code=503, detail="배당 캘린더를 일시적으로 조회할 수 없습니다.") from exc

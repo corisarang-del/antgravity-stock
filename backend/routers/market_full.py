@@ -1,6 +1,7 @@
 """GET /api/market/full and /api/market/full/search endpoints"""
 from __future__ import annotations
 
+import logging
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query
@@ -8,6 +9,8 @@ from pydantic import BaseModel
 
 from core.supabase_client import get_supabase
 from services.runtime_cache import TtlCache
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -162,7 +165,8 @@ async def market_full(
     try:
         all_items = _load_all()
     except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"시장 데이터 조회 실패: {exc}") from exc
+        logger.exception("market_full 조회 실패")
+        raise HTTPException(status_code=503, detail="시장 데이터를 일시적으로 조회할 수 없습니다.") from exc
 
     # 필터
     filtered = all_items
@@ -195,7 +199,8 @@ async def market_full_search(
     try:
         all_items = _load_all()
     except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"검색 실패: {exc}") from exc
+        logger.exception("market_full_search 조회 실패")
+        raise HTTPException(status_code=503, detail="검색을 일시적으로 수행할 수 없습니다.") from exc
 
     query_lower = q.lower()
     matched = [

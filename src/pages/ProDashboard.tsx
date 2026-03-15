@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useRef, useEffect } from "react";
+import { lazy, Suspense, useState, useRef, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Lock, BarChart2, Star, TrendingUp, DollarSign, BookOpen, Loader2, Search, X } from "lucide-react";
@@ -104,12 +104,14 @@ function TickerSearch({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const filtered = query.trim()
-    ? ALL_SYMBOLS.filter((s) => {
-        const q = query.toLowerCase();
-        return s.toLowerCase().includes(q) || TICKER_NAMES[s].toLowerCase().includes(q);
-      })
-    : ALL_SYMBOLS;
+  // Rule rerender-memo: query 변경 시에만 재계산
+  const filtered = useMemo(() => {
+    const trimmed = query.trim().toLowerCase();
+    if (!trimmed) return ALL_SYMBOLS;
+    return ALL_SYMBOLS.filter(
+      (s) => s.toLowerCase().includes(trimmed) || TICKER_NAMES[s].toLowerCase().includes(trimmed)
+    );
+  }, [query]);
 
   // 외부 클릭 시 닫기
   useEffect(() => {
@@ -133,12 +135,13 @@ function TickerSearch({
         <input
           className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground min-w-0"
           placeholder={`${TICKER_NAMES[value] || value} 검색...`}
+          aria-label="종목 검색"
           value={query}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
         />
         {query && (
-          <button onClick={() => setQuery("")}>
+          <button type="button" onClick={() => setQuery("")} aria-label="검색어 초기화">
             <X className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
           </button>
         )}
@@ -178,7 +181,7 @@ export default function ProDashboard() {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [selectedSymbol, setSelectedSymbol] = useState(ALL_SYMBOLS[0] ?? "NVDA");
 
-  // 개요 탭용: 모든 종목 fundamentals 병렬 로드
+  // 개요 탭용: 페이지 마운트 즉시 병렬 prefetch (탭 전환 대기 없음)
   const fundQueries = useQuery({
     queryKey: ["allFundamentals"],
     queryFn: async () => {
@@ -192,7 +195,6 @@ export default function ProDashboard() {
       return map;
     },
     staleTime: 8 * 60 * 60 * 1000, // 8시간 — 재무데이터는 장중 변동 없음
-    enabled: activeTab === "overview",
   });
 
   const selectedFund = useQuery({
@@ -241,21 +243,22 @@ export default function ProDashboard() {
           {/* 탭 콘텐츠 */}
           {activeTab === "overview" && (
             <div className="space-y-6">
+              {/* Top Ranking: fundamentals 로드 완료 후 표시 */}
               {fundQueries.isLoading ? (
-                <div className="flex items-center justify-center py-16">
+                <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                 </div>
               ) : fundQueries.data ? (
-                <>
-                  <ProTopRanking fundamentalsMap={fundQueries.data} names={TICKER_NAMES} />
-                  <ProMarketList
-                    onSelect={(symbol) => {
-                      setSelectedSymbol(symbol);
-                      setActiveTab("fundamentals");
-                    }}
-                  />
-                </>
+                <ProTopRanking fundamentalsMap={fundQueries.data} names={TICKER_NAMES} />
               ) : null}
+
+              {/* 전체 시장 목록: fundamentals 기다리지 않고 즉시 표시 */}
+              <ProMarketList
+                onSelect={(symbol) => {
+                  setSelectedSymbol(symbol);
+                  setActiveTab("fundamentals");
+                }}
+              />
             </div>
           )}
 

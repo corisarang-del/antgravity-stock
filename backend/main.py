@@ -13,7 +13,7 @@ from services.cache_warmer import start_scheduler, stop_scheduler, warm_all_from
 
 
 def _warmup_caches() -> None:
-    """서버 시작 시 주요 캐시를 백그라운드로 워밍업."""
+    """서버 시작 시 주요 캐시를 백그라운드로 워밍업 (Supabase 없이도 동작)."""
     try:
         from services.prediction_service import get_prediction_payload
         get_prediction_payload("SPY", horizon=1)
@@ -23,6 +23,24 @@ def _warmup_caches() -> None:
     try:
         svc = MarketSnapshotService()
         svc.preview_items()
+    except Exception:
+        pass
+
+    # 재무 데이터 프리페치 — Supabase가 비어있을 때 외부 API에서 미리 로드
+    try:
+        from services.fundamentals_service import get_fundamentals
+        for symbol in TICKERS:
+            try:
+                get_fundamentals(symbol)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # 섹터 히트맵 프리페치 — 첫 탭 전환 시 지연 방지
+    try:
+        from services.sectors_service import get_sectors
+        get_sectors()
     except Exception:
         pass
 

@@ -26,8 +26,8 @@ _KR_CORP_CODE: dict[str, str] = {
     "035420.KS": "035420",  # NAVER
 }
 
-# 30분 TTL 캐시
-_FUND_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=1800)
+# 8시간 TTL 캐시 — 재무데이터는 하루 1~2회 갱신
+_FUND_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=28800)
 
 
 # ──────────────────────────────────────────────
