@@ -23,4 +23,8 @@ export default defineConfig(() => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    // 배럴 파일 임포트 최적화 (Rule 2.1: Avoid Barrel File Imports)
+    include: ["lucide-react", "recharts", "date-fns", "framer-motion"],
+  },
 }));

@@ -12,7 +12,7 @@ export function DividendCalendar() {
 
   const { data, isLoading, isError } = useDividendCalendar(year, mon);
 
-  const sortedDates = data ? Object.keys(data.calendar).sort() : [];
+  const sortedDates = data ? Object.keys(data.calendar).toSorted() : [];
 
   return (
     <div className="glass rounded-2xl border border-border p-5 space-y-4">

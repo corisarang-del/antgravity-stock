@@ -1,9 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 
 // ─── 심볼 변환 ───────────────────────────────────────────────────────────────
+// Rule 7.9: RegExp 루프 밖 모듈 레벨로 호이스팅
+const KR_SYMBOL_RE = /^\d{6}$/;
+
 // 한국 종목 (6자리 숫자) → "{symbol}.KS" suffix 추가
 function toBackendSymbol(symbol: string): string {
-  return /^\d{6}$/.test(symbol) ? `${symbol}.KS` : symbol;
+  return KR_SYMBOL_RE.test(symbol) ? `${symbol}.KS` : symbol;
 }
 
 // ─── 공통 요청 헬퍼 ──────────────────────────────────────────────────────────

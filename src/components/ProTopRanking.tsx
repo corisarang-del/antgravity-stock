@@ -30,7 +30,7 @@ function topN(
       value: f[key] as number,
       formatted: "",
     }))
-    .sort((a, b) => (desc ? b.value - a.value : a.value - b.value))
+    .toSorted((a, b) => (desc ? b.value - a.value : a.value - b.value))
     .slice(0, n);
 }
 
@@ -57,7 +57,7 @@ export function ProTopRanking({ fundamentalsMap, names }: Props) {
       value: f.score.total,
       formatted: "",
     }))
-    .sort((a, b) => b.value - a.value)
+    .toSorted((a, b) => b.value - a.value)
     .slice(0, 5);
 
   const pctFmt = (v: number) => `${(v * 100).toFixed(1)}%`;

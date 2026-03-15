@@ -106,8 +106,8 @@ export function AiScreener() {
         스크리닝 실행
       </button>
 
-      {/* 결과 테이블 */}
-      {screener.data && (
+      {/* 결과 테이블 — Rule 6.7: ternary over && */}
+      {screener.data ? (
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">
             {screener.data.count}개 종목 발견
@@ -146,18 +146,18 @@ export function AiScreener() {
                 ))}
               </tbody>
             </table>
-            {screener.data.results.length === 0 && (
+            {screener.data.results.length === 0 ? (
               <p className="text-center py-8 text-muted-foreground text-sm">
                 조건에 맞는 종목이 없습니다.
               </p>
-            )}
+            ) : null}
           </div>
         </div>
-      )}
+      ) : null}
 
-      {screener.isError && (
+      {screener.isError ? (
         <p className="text-xs text-loss">스크리닝 실패: {screener.error?.message}</p>
-      )}
+      ) : null}
     </div>
   );
 }

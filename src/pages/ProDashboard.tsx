@@ -1,15 +1,19 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Lock, BarChart2, Star, TrendingUp, DollarSign, BookOpen, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AiScreener } from "@/components/AiScreener";
-import { SectorHeatmap } from "@/components/SectorHeatmap";
 import { InvestmentScoreCard } from "@/components/InvestmentScoreCard";
 import { FundamentalsGrid } from "@/components/FundamentalsGrid";
 import { HistoricalTable } from "@/components/HistoricalTable";
 import { DividendCalendar } from "@/components/DividendCalendar";
 import { ProTopRanking } from "@/components/ProTopRanking";
+
+// Rule 2.4: Recharts Treemap는 무거운 컴포넌트 → 탭 전환 시에만 로드
+const SectorHeatmap = lazy(() =>
+  import("@/components/SectorHeatmap").then((m) => ({ default: m.SectorHeatmap }))
+);
 import { useSubscription } from "@/hooks/useSubscription";
 import { fetchFundamentals, type Fundamentals } from "@/lib/apiClient";
 
@@ -161,7 +165,11 @@ export default function ProDashboard() {
 
           {activeTab === "screener" && <AiScreener />}
 
-          {activeTab === "sector" && <SectorHeatmap />}
+          {activeTab === "sector" && (
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
+              <SectorHeatmap />
+            </Suspense>
+          )}
 
           {activeTab === "fundamentals" && (
             <div className="space-y-5">
