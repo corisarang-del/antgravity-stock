@@ -16,7 +16,7 @@ const SectorHeatmap = lazy(() =>
   import("@/components/SectorHeatmap").then((m) => ({ default: m.SectorHeatmap }))
 );
 import { useSubscription } from "@/hooks/useSubscription";
-import { fetchFundamentals, type Fundamentals } from "@/lib/apiClient";
+import { fetchFundamentals, fetchMarketSearch, type Fundamentals } from "@/lib/apiClient";
 
 // 전체 종목 목록 (backend/data/pipeline.py TICKERS 동기화)
 const TICKERS: Record<string, { name: string; market: string }> = {
@@ -92,7 +92,7 @@ function ProGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// 종목 서치 컴포넌트
+// 종목 서치 컴포넌트 — 2글자 이상 입력 시 전체 universe(13,830개) API 검색
 function TickerSearch({
   value,
   onChange,
@@ -104,14 +104,22 @@ function TickerSearch({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Rule rerender-memo: query 변경 시에만 재계산
-  const filtered = useMemo(() => {
-    const trimmed = query.trim().toLowerCase();
-    if (!trimmed) return ALL_SYMBOLS;
-    return ALL_SYMBOLS.filter(
-      (s) => s.toLowerCase().includes(trimmed) || TICKER_NAMES[s].toLowerCase().includes(trimmed)
-    );
-  }, [query]);
+  const trimmed = query.trim();
+
+  // 2글자 이상 → API 검색, 미만 → 로컬 14개 표시
+  const { data: searchData } = useQuery({
+    queryKey: ["tickerSearch", trimmed],
+    queryFn: () => fetchMarketSearch(trimmed),
+    enabled: trimmed.length >= 2,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const items = useMemo(() => {
+    if (trimmed.length >= 2) {
+      return (searchData?.items ?? []).map((s) => ({ symbol: s.symbol, name: s.name ?? s.symbol }));
+    }
+    return ALL_SYMBOLS.map((s) => ({ symbol: s, name: TICKER_NAMES[s] }));
+  }, [trimmed, searchData]);
 
   // 외부 클릭 시 닫기
   useEffect(() => {
@@ -145,7 +153,6 @@ function TickerSearch({
             <X className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
           </button>
         )}
-        {/* 현재 선택 종목 뱃지 */}
         {!query && (
           <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-semibold shrink-0">
             {value}
@@ -155,19 +162,19 @@ function TickerSearch({
 
       {open && (
         <div className="absolute z-50 top-full mt-1 w-full max-h-60 overflow-y-auto rounded-xl border border-border bg-background shadow-lg">
-          {filtered.length === 0 ? (
+          {items.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-4">검색 결과 없음</p>
           ) : (
-            filtered.map((s) => (
+            items.map(({ symbol, name }) => (
               <button
-                key={s}
-                onClick={() => select(s)}
+                key={symbol}
+                onClick={() => select(symbol)}
                 className={`w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-secondary transition-colors ${
-                  s === value ? "bg-primary/10" : ""
+                  symbol === value ? "bg-primary/10" : ""
                 }`}
               >
-                <span className="text-sm font-semibold">{TICKER_NAMES[s]}</span>
-                <span className="text-xs text-muted-foreground font-mono">{s}</span>
+                <span className="text-sm font-semibold">{name}</span>
+                <span className="text-xs text-muted-foreground font-mono">{symbol}</span>
               </button>
             ))
           )}
