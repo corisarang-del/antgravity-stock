@@ -112,48 +112,61 @@ def _batch_upsert(table: str, rows: list[dict], on_conflict: str) -> int:
 
 
 def collect_ticker_universe_kr() -> int:
-    """PyKRX로 KOSPI/KOSDAQ 전체 종목 메타 수집 -> ticker_universe upsert.
+    """DART API corpCode.xml로 KOSPI/KOSDAQ 전체 상장 종목 수집 -> ticker_universe upsert.
 
-    KOSPI 종목은 .KS, KOSDAQ 종목은 .KQ 접미사를 부여한다.
+    PyKRX 대신 DART API 사용 (KRX 웹사이트 403 차단 우회).
+    stock_code 6자리 + .KS 접미사 부여 (KOSPI/KOSDAQ 구분 없이 .KS 통일).
 
     Returns: upserted row count
     """
+    import io
+    import zipfile
+    import xml.etree.ElementTree as ET
+    import httpx
+    from core.config import settings
+
+    dart_key = settings.DART_API_KEY
+    if not dart_key:
+        _logger.error("DART_API_KEY 미설정 — KR universe 수집 불가")
+        return 0
+
     try:
-        from pykrx import stock as krx
-    except ImportError as exc:
-        raise ImportError(
-            "pykrx 패키지가 필요함: pip install pykrx"
-        ) from exc
+        resp = httpx.get(
+            "https://opendart.fss.or.kr/api/corpCode.xml",
+            params={"crtfc_key": dart_key},
+            timeout=30,
+        )
+        resp.raise_for_status()
+    except Exception:
+        _logger.exception("DART corpCode.xml 다운로드 실패")
+        return 0
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
+            xml_bytes = zf.read(zf.namelist()[0])
+        root = ET.fromstring(xml_bytes)
+    except Exception:
+        _logger.exception("DART corpCode.xml 파싱 실패")
+        return 0
 
     rows: list[dict] = []
-
-    for market_code, suffix in (("KOSPI", ".KS"), ("KOSDAQ", ".KQ")):
-        try:
-            today_str = date.today().strftime("%Y%m%d")
-            tickers = krx.get_market_ticker_list(today_str, market=market_code)
-        except Exception:
-            _logger.exception("pykrx %s 티커 목록 조회 실패", market_code)
+    for item in root.findall("list"):
+        stock_code = (item.findtext("stock_code") or "").strip()
+        corp_name = (item.findtext("corp_name") or "").strip()
+        # 비상장 기업 제외 (stock_code 없으면 비상장)
+        if not stock_code or len(stock_code) != 6 or not stock_code.isdigit():
             continue
+        rows.append(
+            {
+                "symbol": f"{stock_code}.KS",
+                "name": corp_name,
+                "market": "KR",
+                "sector": None,
+                "industry": None,
+            }
+        )
 
-        for ticker in tickers:
-            ticker_str = str(ticker).strip()
-            if not ticker_str:
-                continue
-            try:
-                name = krx.get_market_ticker_name(ticker_str)
-            except Exception:
-                name = ""
-            rows.append(
-                {
-                    "symbol": f"{ticker_str}{suffix}",
-                    "name": name,
-                    "market": "KR",
-                    "sector": None,
-                    "industry": None,
-                }
-            )
-
-    count = _batch_upsert("ticker_universe", rows, on_conflict="symbol")
+    count = _batch_upsert("ticker_universe", rows, on_conflict="symbol,market")
     _logger.info("ticker_universe KR upsert 완료: %d건", count)
     return count
 
@@ -195,80 +208,114 @@ def collect_ticker_universe_us() -> int:
             }
         )
 
-    count = _batch_upsert("ticker_universe", rows, on_conflict="symbol")
+    count = _batch_upsert("ticker_universe", rows, on_conflict="symbol,market")
     _logger.info("ticker_universe US upsert 완료: %d건", count)
     return count
 
 
-def collect_kr_snapshot(date_str: str | None = None) -> int:
-    """PyKRX 벌크 API로 KOSPI + KOSDAQ 전체 OHLCV + 재무지표 수집 -> market_snapshot upsert.
+def collect_kr_snapshot() -> int:
+    """yfinance.download 배치로 한국 전체 종목 가격 수집 -> market_snapshot upsert.
 
-    Args:
-        date_str: "YYYYMMDD" 형식. None이면 최근 영업일.
+    PyKRX는 KRX API 403 차단으로 사용 불가 → yfinance 동일 패턴 사용.
+    ticker_universe에서 KR 종목 로드 후 1,000개씩 배치 처리.
     Returns: upserted row count
     """
-    try:
-        from pykrx import stock as krx
-    except ImportError as exc:
-        raise ImportError("pykrx 패키지가 필요함: pip install pykrx") from exc
+    client = get_supabase()
 
     try:
-        target_date = date_str or krx.get_nearest_business_day_in_a_week()
+        res = client.table("ticker_universe").select("symbol").eq("market", "KR").execute()
+        symbols = [r["symbol"] for r in (res.data or [])]
     except Exception:
-        _logger.exception("최근 영업일 조회 실패")
+        _logger.exception("ticker_universe KR 종목 조회 실패")
         return 0
 
-    rows: list[dict] = []
-    snapshot_date = (
-        f"{target_date[:4]}-{target_date[4:6]}-{target_date[6:8]}"
-    )
+    if not symbols:
+        _logger.info("ticker_universe에 KR 종목 없음. 건너뜀.")
+        return 0
 
-    for market_code, suffix in (("KOSPI", ".KS"), ("KOSDAQ", ".KQ")):
+    today_str = date.today().isoformat()
+    all_rows: list[dict] = []
+
+    import time
+
+    for i in range(0, len(symbols), _YF_BATCH_SIZE):
+        batch = symbols[i : i + _YF_BATCH_SIZE]
+        tickers_str = " ".join(batch)
         try:
-            ohlcv = krx.get_market_ohlcv_by_ticker(target_date, market=market_code)
-            fund = krx.get_market_fundamental_by_ticker(target_date, market=market_code)
+            df = yf.download(
+                tickers=tickers_str,
+                period="2d",
+                interval="1d",
+                threads=True,
+                progress=False,
+            )
         except Exception:
-            _logger.exception("pykrx %s 데이터 조회 실패 (date=%s)", market_code, target_date)
+            _logger.exception("yfinance download 실패: batch offset=%d", i)
+            time.sleep(5)
             continue
 
-        if ohlcv.empty:
+        if df.empty:
+            time.sleep(3)
             continue
 
-        # fund가 비어있으면 빈 DataFrame으로 join 처리
-        merged = ohlcv.join(fund, how="left") if not fund.empty else ohlcv
+        is_multi = isinstance(df.columns, pd.MultiIndex)
 
-        for ticker_code, row in merged.iterrows():
-            ticker_str = str(ticker_code).strip()
-            close_val = float(row.get("종가", 0))
-            if close_val <= 0:
+        for sym in batch:
+            try:
+                if is_multi:
+                    close_series = df[("Close", sym)]
+                else:
+                    if len(batch) == 1:
+                        close_series = df["Close"]
+                    else:
+                        continue
+
+                close_series = close_series.dropna()
+                if close_series.empty:
+                    continue
+
+                close_val = float(close_series.iloc[-1])
+                if close_val <= 0:
+                    continue
+
+                change_pct = None
+                if len(close_series) >= 2:
+                    prev = float(close_series.iloc[-2])
+                    if prev > 0:
+                        change_pct = round((close_val - prev) / prev * 100, 2)
+
+                vol_val = None
+
+                if is_multi:
+                    vol_s = df[("Volume", sym)].dropna()
+                else:
+                    vol_s = df["Volume"].dropna()
+
+                if not vol_s.empty:
+                    vol_val = int(vol_s.iloc[-1])
+
+                all_rows.append(
+                    {
+                        "symbol": sym,
+                        "market": "KR",
+                        "snapshot_date": today_str,
+                        "close": close_val,
+                        "volume": vol_val,
+                        "market_cap": None,
+                        "per": None,
+                        "pbr": None,
+                        "change_pct": change_pct,
+                    }
+                )
+            except Exception:
+                _logger.debug("KR snapshot 개별 종목 처리 실패: %s", sym)
                 continue
 
-            open_val = float(row.get("시가", 0))
-            high_val = float(row.get("고가", 0))
-            low_val = float(row.get("저가", 0))
-            volume_val = int(row.get("거래량", 0))
-            market_cap = int(row.get("시가총액", 0)) if "시가총액" in row.index else None
-            per_val = float(row.get("PER", 0)) if "PER" in row.index else None
-            pbr_val = float(row.get("PBR", 0)) if "PBR" in row.index else None
+        # 배치 간 딜레이 (레이트 리밋 방지)
+        time.sleep(2)
 
-            rows.append(
-                {
-                    "symbol": f"{ticker_str}{suffix}",
-                    "snapshot_date": snapshot_date,
-                    "open": open_val,
-                    "high": high_val,
-                    "low": low_val,
-                    "close": close_val,
-                    "volume": volume_val,
-                    "market_cap": market_cap,
-                    "per": per_val,
-                    "pbr": pbr_val,
-                    "change_pct": None,
-                }
-            )
-
-    count = _batch_upsert("market_snapshot", rows, on_conflict="symbol,snapshot_date")
-    _logger.info("market_snapshot KR upsert 완료: %d건 (date=%s)", count, target_date)
+    count = _batch_upsert("market_snapshot", all_rows, on_conflict="symbol,snapshot_date")
+    _logger.info("market_snapshot KR upsert 완료: %d건", count)
     return count
 
 
@@ -294,6 +341,8 @@ def collect_us_snapshot() -> int:
     today_str = date.today().isoformat()
     all_rows: list[dict] = []
 
+    import time
+
     for i in range(0, len(symbols), _YF_BATCH_SIZE):
         batch = symbols[i : i + _YF_BATCH_SIZE]
         tickers_str = " ".join(batch)
@@ -307,9 +356,11 @@ def collect_us_snapshot() -> int:
             )
         except Exception:
             _logger.exception("yfinance download 실패: batch offset=%d", i)
+            time.sleep(5)
             continue
 
         if df.empty:
+            time.sleep(3)
             continue
 
         # yfinance multi-ticker: MultiIndex columns (Price, Ticker)
@@ -341,41 +392,24 @@ def collect_us_snapshot() -> int:
                     if prev > 0:
                         change_pct = round((close_val - prev) / prev * 100, 2)
 
-                open_val = None
-                high_val = None
-                low_val = None
                 vol_val = None
 
                 if is_multi:
-                    open_s = df[("Open", sym)].dropna()
-                    high_s = df[("High", sym)].dropna()
-                    low_s = df[("Low", sym)].dropna()
                     vol_s = df[("Volume", sym)].dropna()
                 else:
-                    open_s = df["Open"].dropna()
-                    high_s = df["High"].dropna()
-                    low_s = df["Low"].dropna()
                     vol_s = df["Volume"].dropna()
 
-                if not open_s.empty:
-                    open_val = float(open_s.iloc[-1])
-                if not high_s.empty:
-                    high_val = float(high_s.iloc[-1])
-                if not low_s.empty:
-                    low_val = float(low_s.iloc[-1])
                 if not vol_s.empty:
                     vol_val = int(vol_s.iloc[-1])
 
                 all_rows.append(
                     {
                         "symbol": sym,
+                        "market": "US",
                         "snapshot_date": today_str,
-                        "open": open_val,
-                        "high": high_val,
-                        "low": low_val,
                         "close": close_val,
                         "volume": vol_val,
-                        "market_cap": None,  # yfinance.download은 시총 미제공 -- ticker_universe 또는 별도 수집 필요
+                        "market_cap": None,
                         "per": None,
                         "pbr": None,
                         "change_pct": change_pct,
@@ -384,6 +418,9 @@ def collect_us_snapshot() -> int:
             except Exception:
                 _logger.debug("US snapshot 개별 종목 처리 실패: %s", sym)
                 continue
+
+        # 배치 간 딜레이 (레이트 리밋 방지)
+        time.sleep(2)
 
     count = _batch_upsert("market_snapshot", all_rows, on_conflict="symbol,snapshot_date")
     _logger.info("market_snapshot US upsert 완료: %d건", count)

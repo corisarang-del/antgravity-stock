@@ -148,7 +148,7 @@ def run_snapshot(market: str, date_str: str) -> None:
     print(f"[snapshot] 시작 — market={market}, date={date_str}")
 
     if market in ("KR", "all"):
-        count = collect_kr_snapshot(date_str)
+        count = collect_kr_snapshot()
         print(f"[snapshot] KR: {count}건 upsert")
 
     if market in ("US", "all"):
