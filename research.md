@@ -1,5 +1,5 @@
 # AntGravity Stock - Research Report
-> 최종 업데이트: 2026-03-13
+> 최종 업데이트: 2026-03-12
 
 ## 1. 프로젝트 개요
 
@@ -159,7 +159,7 @@ plan === "pro" && (status === "active" || status === "cancelled")
 ## 9. 인증
 
 - **방식**: Supabase Auth
-- **소셜**: Google OAuth, Kakao OAuth (`@lovable.dev/cloud-auth-js`)
+- **소셜**: Google OAuth, Kakao OAuth (supabase로 변경 예정 및 직접 카카오 개발자 플랫폼 연결)
 - **이메일**: Email/Password
 - **세션**: `onAuthStateChange` 자동 감지
 
@@ -176,27 +176,24 @@ plan === "pro" && (status === "active" || status === "cancelled")
 | 경고 | 황금색 `hsl(47, 100%, 50%)` |
 | 본문 폰트 | Space Grotesk |
 | 모노 폰트 | JetBrains Mono |
-| 로고 폰트 | Playfair Display (이탤릭) |
+| 로고 폰트 | Abril Fatface |
 
 **테마**: 90년대 애니메이션 감성 + 현대적 인터페이스
-**다크모드**: `next-themes` ThemeProvider, CSS 변수 기반 (`class` 전략)
 
 ---
 
 ## 11. 구현 현황
 
 ### ✅ 완성
-- AI 종목 진단 UI (검색, 점수, 요인 분석) — `/` 기본 진입점
-- 주식 상세 분석 (차트, 재무제표, 뉴스, 목표가) — `/home`
+- AI 종목 진단 UI (검색, 점수, 요인 분석)
+- 주식 상세 분석 (차트, 재무제표, 뉴스, 목표가)
 - 포트폴리오 관리 (파이 차트, 수익률 계산)
 - 관심종목 (Free/Pro 제한 적용)
 - 가격 알림 (DB 저장, 토글)
 - 시장심리 분석 (공포탐욕지수, 온도계, AI 일기)
 - 인증 (Google/Kakao/Email)
 - 결제 (Toss Payments 빌링키)
-- 반응형 UI (모바일 하단 탭바)
-- 다크모드 (next-themes, CSS 변수 기반)
-- Diagnose → Home 심볼 전달 플로우 (location.state)
+- 반응형 UI (모바일 드로어 포함)
 
 ### ⚠️ 부분 구현
 - 공모주 정보 (DART API 연동 시도, 현재 폴백)

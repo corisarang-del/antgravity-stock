@@ -43,8 +43,8 @@ export function AppShell({ children, hideTicker }: AppShellProps) {
             <img src={antCharacter} alt="AntGravity" className="w-full h-full object-contain" />
           </motion.div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold font-logo italic gradient-text-primary text-lg tracking-tight leading-none">AntGravity</span>
+            <div className="flex items-center gap-3">
+              <span className="font-bold font-logo italic gradient-text-primary text-lg tracking-tight leading-none pr-1">AntGravity</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-mono hidden sm:inline">PRO</span>
             </div>
             <div className="text-[10px] text-muted-foreground hidden sm:block leading-none mt-0.5">개미들의 AI 투자 플랫폼</div>

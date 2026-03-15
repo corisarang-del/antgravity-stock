@@ -1,0 +1,23 @@
+{
+  "version": "v1",
+  "symbol": "TSLA",
+  "name": "테슬라",
+  "evaluated_at": "2026-03-09T06:40:17.326766+00:00",
+  "metrics": {
+    "mape": 88.5294,
+    "da": 48.3871,
+    "rmse": 0.59453
+  },
+  "promoted": false,
+  "promotion_reason": "directional accuracy below threshold: 48.39 < 53.00",
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.458543,
+      "val_loss": 0.353466,
+      "mape": 88.5294,
+      "da": 48.3871,
+      "rmse": 0.59453
+    }
+  ]
+}

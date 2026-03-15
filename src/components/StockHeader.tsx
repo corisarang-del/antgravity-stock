@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
-import { BarChart2, DollarSign, Activity, TrendingUp, TrendingDown, ExternalLink } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { BarChart2, DollarSign, Activity, TrendingUp, TrendingDown } from "lucide-react";
 import { STOCK_FINANCIALS } from "@/data/stockData";
 
 interface StockHeaderProps {
@@ -14,7 +13,6 @@ interface StockHeaderProps {
 
 export function StockHeader({ symbol, name, price, change, changePct, sector }: StockHeaderProps) {
   const isGain = changePct >= 0;
-  const navigate = useNavigate();
   const fin = STOCK_FINANCIALS[symbol];
 
   return (
@@ -54,13 +52,6 @@ export function StockHeader({ symbol, name, price, change, changePct, sector }: 
               </span>
             </div>
           </div>
-          <button
-            onClick={() => navigate(`/stock/${symbol}`)}
-            className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors shrink-0 mt-1"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            상세 분석
-          </button>
         </div>
       </div>
 
