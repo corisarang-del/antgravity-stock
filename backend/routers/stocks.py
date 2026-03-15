@@ -10,6 +10,8 @@ from core.config import settings
 from core.supabase_client import get_supabase
 from data.pipeline import TICKERS
 from services.fallback_data_service import FallbackDataService
+from services.fundamentals_service import get_fundamentals
+from services.history_service import get_financial_history
 from services.prediction_service import get_prediction_payload
 from services.runtime_cache import TtlCache
 
@@ -137,6 +139,28 @@ async def get_stock(
     if symbol not in TICKERS:
         raise HTTPException(status_code=404, detail=f"지원하지 않는 종목: {symbol}")
     return _load_stock_payload(symbol, period)
+
+
+@router.get("/{symbol}/fundamentals")
+async def get_stock_fundamentals(symbol: str):
+    """재무지표 + Investment Score (30분 TTL 캐시)"""
+    if symbol not in TICKERS:
+        raise HTTPException(status_code=404, detail=f"지원하지 않는 종목: {symbol}")
+    try:
+        return get_fundamentals(symbol)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"재무 데이터 조회 실패: {exc}") from exc
+
+
+@router.get("/{symbol}/history")
+async def get_stock_history(symbol: str):
+    """5개년 재무 히스토리 (24시간 TTL 캐시)"""
+    if symbol not in TICKERS:
+        raise HTTPException(status_code=404, detail=f"지원하지 않는 종목: {symbol}")
+    try:
+        return get_financial_history(symbol)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"재무 히스토리 조회 실패: {exc}") from exc
 
 
 @router.get("/")
