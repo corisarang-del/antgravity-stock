@@ -6,6 +6,9 @@ FastAPI 서버 없이 독립 실행 가능.
 사용:
     python backend/scripts/daily_refresh.py
     python backend/scripts/daily_refresh.py --symbol NVDA   # 단일 심볼 테스트
+    python backend/scripts/daily_refresh.py --phase universe --market KR
+    python backend/scripts/daily_refresh.py --phase snapshot --market all
+    python backend/scripts/daily_refresh.py --phase snapshot --date 20260315
 
 환경변수 (GitHub Secrets 또는 .env):
     SUPABASE_URL
@@ -114,11 +117,76 @@ def main(symbols: list[str] | None = None) -> None:
         sys.exit(1)
 
 
+def run_universe(market: str) -> None:
+    """ticker_universe 수집 (KR/US 전체 시장)."""
+    from services.market_snapshot_service import (
+        collect_ticker_universe_kr,
+        collect_ticker_universe_us,
+    )
+
+    print(f"[universe] 시작 — market={market}")
+
+    if market in ("KR", "all"):
+        count = collect_ticker_universe_kr()
+        print(f"[universe] KR: {count}건 upsert")
+
+    if market in ("US", "all"):
+        count = collect_ticker_universe_us()
+        print(f"[universe] US: {count}건 upsert")
+
+    print("[universe] 완료")
+
+
+def run_snapshot(market: str, date_str: str) -> None:
+    """market_snapshot 수집 (일일 가격 데이터)."""
+    from services.market_snapshot_service import (
+        collect_kr_snapshot,
+        collect_us_snapshot,
+        _cleanup_old_snapshots,
+    )
+
+    print(f"[snapshot] 시작 — market={market}, date={date_str}")
+
+    if market in ("KR", "all"):
+        count = collect_kr_snapshot(date_str)
+        print(f"[snapshot] KR: {count}건 upsert")
+
+    if market in ("US", "all"):
+        count = collect_us_snapshot()
+        print(f"[snapshot] US: {count}건 upsert")
+
+    _cleanup_old_snapshots()
+    print("[snapshot] 오래된 스냅샷 정리 완료")
+
+
 if __name__ == "__main__":
     import argparse
+    import datetime
 
-    parser = argparse.ArgumentParser(description="일일 재무 데이터 배치 수집")
-    parser.add_argument("--symbol", nargs="+", help="수집할 심볼 (생략 시 전체)")
+    parser = argparse.ArgumentParser(description="일일 데이터 배치 수집")
+    parser.add_argument("--symbol", nargs="+", help="수집할 심볼 (fundamentals phase용)")
+    parser.add_argument(
+        "--phase",
+        choices=["fundamentals", "universe", "snapshot"],
+        default="fundamentals",
+        help="수집 단계",
+    )
+    parser.add_argument(
+        "--market",
+        choices=["KR", "US", "all"],
+        default="all",
+        help="대상 시장 (universe/snapshot phase용)",
+    )
+    parser.add_argument(
+        "--date",
+        help="YYYYMMDD 형식 날짜 (snapshot phase용, 기본: 오늘)",
+    )
     args = parser.parse_args()
 
-    main(symbols=args.symbol)
+    if args.phase == "fundamentals":
+        main(symbols=args.symbol)
+    elif args.phase == "universe":
+        run_universe(args.market)
+    elif args.phase == "snapshot":
+        date_str = args.date or datetime.date.today().strftime("%Y%m%d")
+        run_snapshot(args.market, date_str)

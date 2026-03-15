@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
 from data.pipeline import MARKET_TICKER_SYMBOLS, TICKERS
-from routers import dashboard, dividends, predict, screener, sectors, sentiment, stocks, tips
+from routers import dashboard, dividends, market_full, predict, screener, sectors, sentiment, stocks, tips
 from services.market_snapshot_service import MarketSnapshotService
 from services.cache_warmer import start_scheduler, stop_scheduler, warm_all_from_supabase
 
@@ -70,6 +70,7 @@ app.include_router(sentiment.router, prefix="/api/sentiment", tags=["sentiment"]
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
 app.include_router(tips.router, prefix="/api/tips", tags=["tips"])
 app.include_router(sectors.router, prefix="/api/market", tags=["market"])
+app.include_router(market_full.router, prefix="/api/market", tags=["market"])
 
 market_ticker_service = MarketSnapshotService()
 

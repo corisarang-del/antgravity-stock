@@ -271,3 +271,50 @@ export async function fetchDividendCalendar(
     `/api/stocks/dividends/calendar?year=${year}&month=${month}`
   );
 }
+
+// ─── Phase 9: 전체 시장 데이터 ───────────────────────────────────────────────
+
+export interface MarketStock {
+  symbol: string;
+  market: string;      // "KR" | "US"
+  name: string | null;
+  sector: string | null;
+  close: number | null;
+  change_pct: number | null;
+  market_cap: number | null;
+  per: number | null;
+  pbr: number | null;
+  snapshot_date: string | null;
+}
+
+export interface MarketFullResponse {
+  items: MarketStock[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface MarketSearchResponse {
+  items: MarketStock[];
+  total: number;
+}
+
+export async function fetchMarketFull(params: {
+  market?: "KR" | "US" | "all";
+  page?: number;
+  limit?: number;
+  sort?: "market_cap" | "change_pct" | "per" | "name";
+  sector?: string;
+}): Promise<MarketFullResponse> {
+  const searchParams = new URLSearchParams();
+  if (params.market) searchParams.set("market", params.market);
+  if (params.page) searchParams.set("page", String(params.page));
+  if (params.limit) searchParams.set("limit", String(params.limit));
+  if (params.sort) searchParams.set("sort", params.sort);
+  if (params.sector) searchParams.set("sector", params.sector);
+  return apiFetch<MarketFullResponse>(`/api/market/full?${searchParams}`);
+}
+
+export async function fetchMarketSearch(q: string): Promise<MarketSearchResponse> {
+  return apiFetch<MarketSearchResponse>(`/api/market/full/search?q=${encodeURIComponent(q)}`);
+}

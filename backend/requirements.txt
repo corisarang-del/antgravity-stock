@@ -6,6 +6,8 @@ uvicorn[standard]>=0.30.0
 pandas>=2.2.0
 numpy>=1.26.0
 yfinance>=0.2.0
+pykrx>=0.2.0
+opendartreader>=1.0.0
 dartlab[all]>=0.4.0
 
 # ML Model

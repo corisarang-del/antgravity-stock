@@ -9,7 +9,7 @@ import { FundamentalsGrid } from "@/components/FundamentalsGrid";
 import { HistoricalTable } from "@/components/HistoricalTable";
 import { DividendCalendar } from "@/components/DividendCalendar";
 import { ProTopRanking } from "@/components/ProTopRanking";
-import { ProAllTickers } from "@/components/ProAllTickers";
+import { ProMarketList } from "@/components/ProMarketList";
 
 // Rule 2.4: Recharts Treemap는 무거운 컴포넌트 → 탭 전환 시에만 로드
 const SectorHeatmap = lazy(() =>
@@ -248,9 +248,7 @@ export default function ProDashboard() {
               ) : fundQueries.data ? (
                 <>
                   <ProTopRanking fundamentalsMap={fundQueries.data} names={TICKER_NAMES} />
-                  <ProAllTickers
-                    fundamentalsMap={fundQueries.data}
-                    names={TICKER_NAMES}
+                  <ProMarketList
                     onSelect={(symbol) => {
                       setSelectedSymbol(symbol);
                       setActiveTab("fundamentals");
