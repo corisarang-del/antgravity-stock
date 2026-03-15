@@ -13,6 +13,10 @@ from typing import Any
 from core.supabase_client import get_supabase
 from data.pipeline import TICKERS
 from services.fundamentals_service import get_fundamentals
+from services.runtime_cache import TtlCache
+
+# 스크리너 결과 캐시 — 6시간 TTL (장 종료 후 데이터 갱신 주기에 맞춤)
+_SCREENER_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=6 * 3600)
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +219,18 @@ def _apply_basic_filters(
     return filtered
 
 
+def _screener_cache_key(
+    strategies: list[str],
+    combination: str,
+    market: str,
+    per_max: float | None,
+    pbr_max: float | None,
+    market_cap_min: float | None,
+    change_pct_min: float | None,
+) -> str:
+    return f"{sorted(strategies)}/{combination}/{market}/{per_max}/{pbr_max}/{market_cap_min}/{change_pct_min}"
+
+
 def run_screener(
     strategies: list[str],
     combination: str = "AND",
@@ -225,6 +241,11 @@ def run_screener(
     change_pct_min: float | None = None,
 ) -> dict[str, Any]:
     """스크리닝 실행 (2-tier: snapshot -> strategy filters)"""
+
+    cache_key = _screener_cache_key(strategies, combination, market, per_max, pbr_max, market_cap_min, change_pct_min)
+    cached = _SCREENER_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
 
     # 전략 필터가 필요한지 판단
     skip_strategies = not strategies or strategies == ["all"]
@@ -296,7 +317,8 @@ def run_screener(
             })
 
     results.sort(key=lambda x: x["score"], reverse=True)
-    return {"count": len(results), "results": results}
+    result = {"count": len(results), "results": results}
+    return _SCREENER_CACHE.set(cache_key, result)
 
 
 def _run_screener_legacy(
