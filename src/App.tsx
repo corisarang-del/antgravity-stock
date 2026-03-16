@@ -17,9 +17,17 @@ import TipsDetail from "./pages/TipsDetail";
 import Upgrade from "./pages/Upgrade";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentFail from "./pages/PaymentFail";
+import ProDashboard from "./pages/ProDashboard";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // 컴포넌트 언마운트 후 24시간 캐시 유지 (탭 전환 시 재요청 방지)
+      gcTime: 24 * 60 * 60 * 1000,
+    },
+  },
+});
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
@@ -42,6 +50,7 @@ const App = () => (
             <Route path="/upgrade" element={<Upgrade />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/fail" element={<PaymentFail />} />
+            <Route path="/pro" element={<ProDashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
