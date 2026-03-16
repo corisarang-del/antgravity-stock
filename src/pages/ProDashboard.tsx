@@ -16,7 +16,7 @@ const SectorHeatmap = lazy(() =>
   import("@/components/SectorHeatmap").then((m) => ({ default: m.SectorHeatmap }))
 );
 import { useSubscription } from "@/hooks/useSubscription";
-import { fetchFundamentals, fetchMarketSearch, type Fundamentals } from "@/lib/apiClient";
+import { fetchFundamentals, fetchFundamentalsBatch, fetchMarketSearch, type Fundamentals } from "@/lib/apiClient";
 
 // 전체 종목 목록 (backend/data/pipeline.py TICKERS 동기화)
 const TICKERS: Record<string, { name: string; market: string }> = {
@@ -192,13 +192,11 @@ export default function ProDashboard() {
   const fundQueries = useQuery({
     queryKey: ["allFundamentals"],
     queryFn: async () => {
-      const results = await Promise.allSettled(
-        ALL_SYMBOLS.map((s) => fetchFundamentals(s))
-      );
+      const raw = await fetchFundamentalsBatch(ALL_SYMBOLS);
       const map: Record<string, Fundamentals> = {};
-      results.forEach((r, i) => {
-        if (r.status === "fulfilled") map[ALL_SYMBOLS[i]] = r.value;
-      });
+      for (const [sym, data] of Object.entries(raw)) {
+        if (data !== null) map[sym] = data;
+      }
       return map;
     },
     staleTime: 8 * 60 * 60 * 1000, // 8시간 — 재무데이터는 장중 변동 없음

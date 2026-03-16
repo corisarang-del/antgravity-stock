@@ -263,6 +263,7 @@
 - [x] T9-C-4: `src/components/ProMarketList.tsx` 신규
   - 전체종목 테이블 (페이지네이션, 검색바, 필터 패널 연동)
   - 기존 `ProAllTickers.tsx` 대체
+  - ⚠️ `src/components/ProAllTickers.tsx` 파일 미삭제 — 추후 정리 필요
 - [x] T9-C-5: `src/pages/ProDashboard.tsx` 수정
   - 개요 탭: `ProAllTickers` → `ProMarketList` 교체
 
@@ -290,5 +291,5 @@
 | 브랜치 | 최신 커밋 | 상태 |
 |--------|----------|------|
 | `feature/tips-trading-calendar` | 171c334 | 커밋 완료, 머지 대기 |
-| `feature/pro-dashboard` | 9af77ca | Phase 9 구현 완료 (E2~E5 런타임 테스트 대기) |
-| `main` | da66a1d | 기준 브랜치 |
+| `feature/pro-dashboard` | 992b9b1 | main 머지 완료, E2~E5 런타임 테스트 대기 |
+| `main` | 0fa2016 | 기준 브랜치 |

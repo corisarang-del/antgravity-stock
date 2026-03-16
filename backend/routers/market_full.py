@@ -8,7 +8,13 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from core.supabase_client import get_supabase
+from data.pipeline import TICKERS as _PIPELINE_TICKERS
 from services.runtime_cache import TtlCache
+
+# symbol → 한글명 fallback (ticker_universe 미적재 시 사용)
+_TICKERS_NAME_MAP: dict[str, str] = {
+    sym: meta["name"] for sym, meta in _PIPELINE_TICKERS.items()
+}
 
 logger = logging.getLogger(__name__)
 
@@ -73,14 +79,24 @@ def _fetch_snapshots(snapshot_date: str) -> list[dict[str, Any]]:
 
 
 def _fetch_universe() -> list[dict[str, Any]]:
-    """ticker_universe 전체 조회."""
+    """ticker_universe 전체 조회 (Supabase 기본 limit 1000 우회 — 페이지네이션)."""
     sb = get_supabase()
-    resp = (
-        sb.table("ticker_universe")
-        .select("symbol, market, name, sector, industry")
-        .execute()
-    )
-    return resp.data or []
+    all_rows: list[dict[str, Any]] = []
+    page_size = 1000
+    offset = 0
+    while True:
+        resp = (
+            sb.table("ticker_universe")
+            .select("symbol, market, name, sector, industry")
+            .range(offset, offset + page_size - 1)
+            .execute()
+        )
+        batch = resp.data or []
+        all_rows.extend(batch)
+        if len(batch) < page_size:
+            break
+        offset += page_size
+    return all_rows
 
 
 def _merge(snapshots: list[dict], universe: list[dict]) -> list[dict]:
@@ -96,7 +112,7 @@ def _merge(snapshots: list[dict], universe: list[dict]) -> list[dict]:
         merged.append({
             "symbol": sym,
             "market": snap.get("market") or uni.get("market", ""),
-            "name": uni.get("name"),
+            "name": uni.get("name") or _TICKERS_NAME_MAP.get(sym),
             "sector": uni.get("sector"),
             "close": snap.get("close"),
             "change_pct": snap.get("change_pct"),
@@ -109,10 +125,11 @@ def _merge(snapshots: list[dict], universe: list[dict]) -> list[dict]:
     # universe에만 있고 snapshot에 없는 종목도 포함
     for uni in universe:
         if uni["symbol"] not in seen:
+            sym = uni["symbol"]
             merged.append({
-                "symbol": uni["symbol"],
+                "symbol": sym,
                 "market": uni.get("market", ""),
-                "name": uni.get("name"),
+                "name": uni.get("name") or _TICKERS_NAME_MAP.get(sym),
                 "sector": uni.get("sector"),
                 "close": None,
                 "change_pct": None,
@@ -214,3 +231,12 @@ async def market_full_search(
         items=[MarketStock(**i) for i in results],
         total=len(matched),
     )
+
+
+@router.get("/debug/universe-count")
+async def debug_universe_count():
+    """임시 디버그 — universe 로드 건수 확인."""
+    uni = _fetch_universe()
+    kr = [r for r in uni if r.get("market") == "KR"]
+    sample = [{"symbol": r["symbol"], "name": r.get("name")} for r in kr[:3]]
+    return {"total": len(uni), "kr_count": len(kr), "sample": sample}

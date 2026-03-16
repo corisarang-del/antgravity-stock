@@ -26,10 +26,10 @@ AI 진단 점수, 차트, 재무제표, 뉴스 감성 분석, 애널리스트 �
 | `/alerts` | `Alerts.tsx` | 가격 알림 |
 | `/diary` | `Diary.tsx` | 개미의 일기 (AI 시황 일기) |
 | `/tips` | `Tips.tsx` | 꿀팁 정보 (IPO 캘린더 포함) |
+| `/tips/:id` | `TipsDetail.tsx` | 꿀팁 상세 페이지 |
 | `/upgrade` | `Upgrade.tsx` | 구독 플랜 (토스페이먼츠 연동) |
-| `/pro` | `ProDashboard.tsx` | 프로 유저 전용 대시보드 (예정) |
-| `/payment/success` | `PaymentSuccess.tsx` | 결제 성공 콜백 |
-| `/payment/fail` | `PaymentFail.tsx` | 결제 실패 콜백 |
+| `/pro` | `ProDashboard.tsx` | 프로 유저 전용 대시보드 |
+| `/payment/*` | `PaymentSuccess.tsx` / `PaymentFail.tsx` | 결제 성공/실패 콜백 |
 
 ## 4. 핵심 기능 스펙
 
@@ -148,7 +148,7 @@ StockDetailPanel(symbol)
 | DART IPO 캘린더 | ✅ 완료 (24h 캐시) |
 | 토스페이먼츠 결제 | ✅ 완료 (월간 구독) |
 | Pro 게이팅 (ProGate) | ✅ 완료 |
-| 프로 유저 전용 대시보드 | 🔄 개발 예정 (feature/pro-dashboard) |
+| 프로 유저 전용 대시보드 | ✅ 완료 (Phase 1~9: 재무인프라, 스크리너, 섹터히트맵, 전체종목 KR/US) |
 | Push 알림 | ❌ 미구현 |
 | Vitest 테스트 | ❌ 미작성 |
 

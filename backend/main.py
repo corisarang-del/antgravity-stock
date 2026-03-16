@@ -44,6 +44,18 @@ def _warmup_caches() -> None:
     except Exception:
         pass
 
+    # 배당 캘린더 프리페치 — 현재 월 캐시 미리 계산 (첫 탭 전환 시 즉시 반환)
+    try:
+        from datetime import date
+        from routers.dividends import _compute_dividend_calendar, _DIV_CACHE
+        today = date.today()
+        cache_key = f"{today.year}-{today.month:02d}"
+        if _DIV_CACHE.get(cache_key) is None:
+            result = _compute_dividend_calendar(today.year, today.month)
+            _DIV_CACHE.set(cache_key, result)
+    except Exception:
+        pass
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

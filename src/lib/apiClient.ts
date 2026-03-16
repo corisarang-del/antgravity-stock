@@ -241,6 +241,15 @@ export async function fetchFundamentals(symbol: string): Promise<Fundamentals> {
   );
 }
 
+export async function fetchFundamentalsBatch(
+  symbols: string[]
+): Promise<Record<string, Fundamentals | null>> {
+  const backendSymbols = symbols.map(toBackendSymbol);
+  return apiFetch<Record<string, Fundamentals | null>>(
+    `/api/stocks/fundamentals/batch?symbols=${encodeURIComponent(backendSymbols.join(","))}`
+  );
+}
+
 export async function fetchHistory(symbol: string): Promise<FinancialHistory> {
   const backendSymbol = toBackendSymbol(symbol);
   return apiFetch<FinancialHistory>(

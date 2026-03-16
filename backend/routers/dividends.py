@@ -101,7 +101,7 @@ def _compute_dividend_calendar(year: int, month: int) -> dict[str, Any]:
     def _fetch(item: tuple[str, dict]) -> list[dict]:
         return _fetch_dividend_events(item[0], item[1], year, month)
 
-    with ThreadPoolExecutor(max_workers=20) as pool:
+    with ThreadPoolExecutor(max_workers=50) as pool:
         for events in pool.map(_fetch, symbols_meta.items()):
             for ev in events:
                 calendar[ev["ex_date"]].append(ev)

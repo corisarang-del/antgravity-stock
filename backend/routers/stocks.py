@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -139,6 +141,23 @@ async def get_stock(
     if symbol not in TICKERS:
         raise HTTPException(status_code=404, detail=f"지원하지 않는 종목: {symbol}")
     return _load_stock_payload(symbol, period)
+
+
+@router.get("/fundamentals/batch")
+async def get_fundamentals_batch(symbols: str = Query(..., description="콤마 구분 심볼 목록 (예: NVDA,005930.KS)")):
+    """여러 종목 재무지표를 한 번에 반환. 14개 종목 병렬 수집용."""
+    symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
+    valid = [s for s in symbol_list if s in TICKERS]
+
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as pool:
+        futures = [loop.run_in_executor(pool, get_fundamentals, sym) for sym in valid]
+        results = await asyncio.gather(*futures, return_exceptions=True)
+
+    return {
+        sym: (None if isinstance(r, Exception) else r)
+        for sym, r in zip(valid, results)
+    }
 
 
 @router.get("/{symbol}/fundamentals")
