@@ -49,7 +49,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r backend/requirements.txt
+        run: pip install -r backend/requirements-ci.txt
 
       - name: Collect ticker universe (KR + US)
         run: python backend/scripts/daily_refresh.py --phase universe --market all
@@ -79,7 +79,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r backend/requirements.txt
+        run: pip install -r backend/requirements-ci.txt
 
       - name: Run fundamentals refresh
         run: |
@@ -114,7 +114,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r backend/requirements.txt
+        run: pip install -r backend/requirements-ci.txt
 
       - name: Collect market snapshot (KR + US)
         run: python backend/scripts/daily_refresh.py --phase snapshot --market all
