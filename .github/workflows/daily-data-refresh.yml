@@ -1,0 +1,120 @@
+name: Daily Financial Data Refresh
+
+on:
+  schedule:
+    # 매일 KST 06:00 = UTC 21:00 (전날)
+    - cron: "0 21 * * *"
+    # 매주 월요일 KST 05:00 = UTC 20:00 (일요일) — ticker_universe 주 1회 갱신
+    - cron: "0 20 * * 0"
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: "특정 심볼만 수집 (예: NVDA AAPL). 비워두면 전체"
+        required: false
+        default: ""
+      phase:
+        description: "수집 단계"
+        required: false
+        default: "fundamentals"
+        type: choice
+        options:
+          - fundamentals
+          - universe
+          - snapshot
+          - all
+
+jobs:
+  refresh-universe:
+    name: Ticker Universe (주 1회, 월요일만)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # 월요일 스케줄(cron 2번째) 또는 수동 실행(universe/all phase)일 때만 실행
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.phase == 'universe' || github.event.inputs.phase == 'all') ||
+      github.event_name == 'schedule' && github.event.schedule == '0 20 * * 0'
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DART_API_KEY: ${{ secrets.DART_API_KEY }}
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Collect ticker universe (KR + US)
+        run: python backend/scripts/daily_refresh.py --phase universe --market all
+
+  refresh-fundamentals:
+    name: Fundamentals & History (14개 핵심 종목)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # 매일 스케줄 또는 수동 실행(fundamentals/all phase)일 때 실행
+    if: |
+      github.event_name == 'schedule' && github.event.schedule == '0 21 * * *' ||
+      github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.phase == 'fundamentals' || github.event.inputs.phase == 'all')
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DART_API_KEY: ${{ secrets.DART_API_KEY }}
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Run fundamentals refresh
+        run: |
+          cd backend
+          if [ -n "${{ github.event.inputs.symbol }}" ]; then
+            python scripts/daily_refresh.py --symbol ${{ github.event.inputs.symbol }}
+          else
+            python scripts/daily_refresh.py
+          fi
+
+  refresh-snapshot:
+    name: Market Snapshot (전체 종목 가격/PER/PBR)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: refresh-fundamentals
+    if: |
+      github.event_name == 'schedule' && github.event.schedule == '0 21 * * *' ||
+      github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.phase == 'snapshot' || github.event.inputs.phase == 'all')
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Collect market snapshot (KR + US)
+        run: python backend/scripts/daily_refresh.py --phase snapshot --market all
