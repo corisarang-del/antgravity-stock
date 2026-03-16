@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lightbulb, Filter, AlertTriangle, Wifi, WifiOff } from "lucide-react";
+import { Lightbulb, Filter, AlertTriangle, Wifi, WifiOff, CalendarDays } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { IpoCard } from "@/components/IpoCard";
 import { IPO_DATA, IpoStatus, STATUS_LABELS } from "@/data/ipoData";
 import { useIpoData } from "@/hooks/useIpoData";
+import { TradingStatusBanner } from "@/components/TradingStatusBanner";
+import { KoreanTradingCalendar } from "@/components/KoreanTradingCalendar";
 
 type FilterKey = "all" | IpoStatus;
 const FILTERS: FilterKey[] = ["all", "open", "upcoming", "closed"];
@@ -49,6 +51,21 @@ const Tips = () => {
             청약 일정, 공모가, 대표주관사 등 핵심 정보를 한눈에 확인하세요.
             금감원 DART 공시 데이터를 실시간으로 가져옵니다.
           </p>
+        </motion.div>
+
+        {/* 한국 개장일 섹션 */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="space-y-3"
+        >
+          <div className="flex items-center gap-2">
+            <CalendarDays className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-muted-foreground">한국 주식시장 개장일</h2>
+          </div>
+          <TradingStatusBanner />
+          <KoreanTradingCalendar />
         </motion.div>
 
         {/* Error Banner */}
