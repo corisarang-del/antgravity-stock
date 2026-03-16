@@ -1,20 +1,57 @@
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, CalendarDays, Building2, AlertTriangle, Tag, TrendingUp, Clock } from "lucide-react";
+import { ArrowLeft, CalendarDays, Building2, AlertTriangle, Tag } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
-import { getIpoById, STATUS_LABELS, IpoStatus } from "@/data/ipoData";
+import { fetchIpoDetail, type BackendIpoItem } from "@/lib/apiClient";
+import { type IpoStatus, STATUS_LABELS } from "@/data/ipoData";
 
-const STATUS_STYLE: Record<IpoStatus, { cls: string }> = {
-  open:     { cls: "bg-primary/15 text-primary border-primary/30" },
-  upcoming: { cls: "bg-primary/15 text-primary border-primary/30" },
-  closed:   { cls: "bg-muted text-muted-foreground border-border" },
+const STATUS_STYLE: Record<IpoStatus, string> = {
+  open:     "bg-primary/15 text-primary border-primary/30",
+  upcoming: "bg-primary/15 text-primary border-primary/30",
+  closed:   "bg-muted text-muted-foreground border-border",
 };
+
+function formatOfferPrice(price: number): string {
+  return price > 0 ? `${price.toLocaleString()}원` : "-";
+}
 
 const TipsDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const ipo = getIpoById(id ?? "");
 
-  if (!ipo) {
+  const { data: ipo, isLoading, isError } = useQuery<BackendIpoItem>({
+    queryKey: ["ipoDetail", id],
+    queryFn: () => fetchIpoDetail(id ?? ""),
+    enabled: !!id,
+    staleTime: 60 * 60 * 1000,
+  });
+
+  if (isLoading) {
+    return (
+      <AppShell hideTicker>
+        <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+          <div className="h-4 w-24 bg-secondary rounded animate-pulse" />
+          <div className="glass rounded-2xl p-6 border border-border space-y-3">
+            <div className="flex gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-secondary animate-pulse" />
+              <div className="flex-1 space-y-2">
+                <div className="h-5 w-1/2 bg-secondary rounded animate-pulse" />
+                <div className="h-3 w-1/3 bg-secondary rounded animate-pulse" />
+              </div>
+            </div>
+            <div className="h-4 w-3/4 bg-secondary rounded animate-pulse" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="glass rounded-xl p-4 border border-border h-20 animate-pulse bg-secondary/30" />
+            ))}
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (isError || !ipo) {
     return (
       <AppShell hideTicker>
         <div className="flex flex-col items-center justify-center py-32 gap-4 text-muted-foreground">
@@ -25,7 +62,8 @@ const TipsDetail = () => {
     );
   }
 
-  const st = STATUS_STYLE[ipo.status];
+  const status = ipo.status as IpoStatus;
+  const statusCls = STATUS_STYLE[status] ?? STATUS_STYLE.closed;
 
   return (
     <AppShell hideTicker>
@@ -43,21 +81,18 @@ const TipsDetail = () => {
         >
           <div className="flex items-start gap-4 mb-4">
             <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-              <span className="text-xl font-bold text-primary">{ipo.company.slice(0, 2)}</span>
+              <span className="text-xl font-bold text-primary">{ipo.company_name.slice(0, 2)}</span>
             </div>
             <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <h1 className="font-bold text-xl">{ipo.company}</h1>
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold ${st.cls}`}>
-                    {STATUS_LABELS[ipo.status]}
-                  </span>
-                </div>
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <h1 className="font-bold text-xl">{ipo.company_name}</h1>
+                <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold ${statusCls}`}>
+                  {STATUS_LABELS[status]}
+                </span>
+              </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Tag className="w-3 h-3" />
-                {ipo.sector}
-                <span>·</span>
-                <TrendingUp className="w-3 h-3" />
-                {ipo.marketCap}
+                {ipo.listing_type}
               </div>
             </div>
           </div>
@@ -72,10 +107,10 @@ const TipsDetail = () => {
           className="grid grid-cols-2 gap-3"
         >
           {[
-            { label: "공모가", value: ipo.offerPrice, sub: ipo.priceRange },
-            { label: "상장예정일", value: ipo.listingDate, icon: CalendarDays },
-            { label: "청약 기간", value: `${ipo.subscriptionStart}`, sub: `~ ${ipo.subscriptionEnd}` },
-            { label: "대표주관", value: ipo.leadUnderwriter, icon: Building2 },
+            { label: "공모가", value: formatOfferPrice(ipo.offer_price) },
+            { label: "상장예정일", value: "-", icon: CalendarDays },
+            { label: "청약 기간", value: ipo.subscription_start_date, sub: `~ ${ipo.subscription_end_date}` },
+            { label: "대표주관", value: ipo.lead_underwriter || "-", icon: Building2 },
           ].map(({ label, value, sub, icon: Icon }) => (
             <div key={label} className="glass rounded-xl p-4 border border-border">
               <div className="text-[11px] text-muted-foreground mb-2 flex items-center gap-1">
@@ -87,24 +122,8 @@ const TipsDetail = () => {
           ))}
         </motion.div>
 
-        {/* Lockup */}
-        {ipo.lockupPeriod && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.15 }}
-            className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-secondary/50 border border-border"
-          >
-            <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
-            <div className="text-xs">
-              <span className="text-muted-foreground">보호예수 기간: </span>
-              <span className="font-semibold">{ipo.lockupPeriod}</span>
-            </div>
-          </motion.div>
-        )}
-
         {/* Details */}
-        {ipo.details && (
+        {ipo.description && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -112,7 +131,7 @@ const TipsDetail = () => {
             className="glass rounded-2xl p-5 border border-border"
           >
             <h2 className="font-semibold text-sm mb-3">기업 상세 정보</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">{ipo.details}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{ipo.description}</p>
           </motion.div>
         )}
 

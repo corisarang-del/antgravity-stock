@@ -1,86 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lightbulb, Filter, AlertTriangle, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { Lightbulb, Filter, AlertTriangle, Wifi, WifiOff, CalendarDays } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { IpoCard } from "@/components/IpoCard";
 import { IPO_DATA, IpoStatus, STATUS_LABELS } from "@/data/ipoData";
-import { supabase } from "@/integrations/supabase/client";
+import { useIpoData } from "@/hooks/useIpoData";
+import { TradingStatusBanner } from "@/components/TradingStatusBanner";
+import { KoreanTradingCalendar } from "@/components/KoreanTradingCalendar";
 
 type FilterKey = "all" | IpoStatus;
 const FILTERS: FilterKey[] = ["all", "open", "upcoming", "closed"];
 
-// Shape returned from edge function (superset of IpoItem)
-interface DartIpoItem {
-  id: string;
-  company: string;
-  status: IpoStatus;
-  subscriptionStart: string;
-  subscriptionEnd: string;
-  listingDate: string;
-  offerPrice: string;
-  priceRange: string;
-  leadUnderwriter: string;
-  summary: string;
-  sector: string;
-  marketCap: string;
-  rceptNo?: string;
-}
-
 const Tips = () => {
   const [filter, setFilter] = useState<FilterKey>("all");
-  const [ipoList, setIpoList] = useState<DartIpoItem[]>(IPO_DATA as DartIpoItem[]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isLive, setIsLive] = useState(false);
+  const { data: liveData, isLoading, isError } = useIpoData();
 
-  useEffect(() => {
-    fetchIpo();
-  }, []);
-
-  const fetchIpo = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/dart-ipo`,
-        { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } }
-      );
-
-      // Read body regardless of status code
-      let data: any = {};
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error("응답 파싱 실패");
-      }
-
-      // If server returned data.list (even with fallback flag), use it
-      if (data.list !== undefined) {
-        if (data.fallback || data.error) {
-          // Server-side fallback — use mock
-          setIpoList(IPO_DATA as DartIpoItem[]);
-          setIsLive(false);
-          setError("DART 연동 실패 — 샘플 데이터를 표시합니다");
-        } else if (data.list.length > 0) {
-          setIpoList(data.list);
-          setIsLive(true);
-        } else {
-          setIpoList(IPO_DATA as DartIpoItem[]);
-          setIsLive(false);
-        }
-      } else if (data.error) {
-        throw new Error(data.error);
-      }
-    } catch (e: any) {
-      setIpoList(IPO_DATA as DartIpoItem[]);
-      setIsLive(false);
-      setError("DART 연동 실패 — 샘플 데이터를 표시합니다");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const ipoList = liveData ?? IPO_DATA;
+  const isLive = !isError && liveData !== undefined;
 
   const filtered = filter === "all" ? ipoList : ipoList.filter((i) => i.status === filter);
   const openCount = ipoList.filter((i) => i.status === "open").length;
@@ -106,20 +42,9 @@ const Tips = () => {
                 <p className="text-xs text-muted-foreground">개미 투자자를 위한 공모주 청약 정보</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Live/mock indicator */}
-              <div className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-full border ${isLive ? "text-gain border-gain/20 bg-gain/10" : "text-muted-foreground border-border bg-secondary/40"}`}>
-                {isLive ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-                {isLive ? "DART 실시간" : "샘플"}
-              </div>
-              <button
-                onClick={fetchIpo}
-                disabled={loading}
-                className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground disabled:opacity-40"
-                title="새로고침"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-              </button>
+            <div className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-full border shrink-0 ${isLive ? "text-gain border-gain/20 bg-gain/10" : "text-muted-foreground border-border bg-secondary/40"}`}>
+              {isLive ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+              {isLive ? "DART 실시간" : "샘플"}
             </div>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed mt-3">
@@ -128,9 +53,24 @@ const Tips = () => {
           </p>
         </motion.div>
 
+        {/* 한국 개장일 섹션 */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="space-y-3"
+        >
+          <div className="flex items-center gap-2">
+            <CalendarDays className="w-4 h-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-muted-foreground">한국 주식시장 개장일</h2>
+          </div>
+          <TradingStatusBanner />
+          <KoreanTradingCalendar />
+        </motion.div>
+
         {/* Error Banner */}
         <AnimatePresence>
-          {error && (
+          {isError && (
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -138,13 +78,13 @@ const Tips = () => {
               className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-warning/5 border border-warning/20 text-xs text-warning"
             >
               <AlertTriangle className="w-4 h-4 shrink-0" />
-              {error}
+              DART 연동 실패 — 샘플 데이터를 표시합니다
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* Summary Bar */}
-        {!loading && (
+        {!isLoading && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -156,8 +96,13 @@ const Tips = () => {
               { label: "청약예정", count: upcomingCount, active: true },
               { label: "청약마감", count: closedCount, active: false },
             ].map(({ label, count, active }) => (
-              <div key={label} className={`glass rounded-xl p-3 text-center border ${active && count > 0 ? "border-primary/20" : "border-border"}`}>
-                <div className={`text-2xl font-bold font-mono ${active && count > 0 ? "text-primary" : "text-muted-foreground"}`}>{count}</div>
+              <div
+                key={label}
+                className={`glass rounded-xl p-3 text-center border ${active && count > 0 ? "border-primary/20" : "border-border"}`}
+              >
+                <div className={`text-2xl font-bold font-mono ${active && count > 0 ? "text-primary" : "text-muted-foreground"}`}>
+                  {count}
+                </div>
                 <div className="text-xs text-muted-foreground mt-1">{label}</div>
               </div>
             ))}
@@ -165,7 +110,7 @@ const Tips = () => {
         )}
 
         {/* Filter */}
-        {!loading && (
+        {!isLoading && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -198,7 +143,7 @@ const Tips = () => {
         )}
 
         {/* Loading skeleton */}
-        {loading && (
+        {isLoading && (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="glass rounded-xl p-5 border border-border animate-pulse">
@@ -211,7 +156,9 @@ const Tips = () => {
                 </div>
                 <div className="h-2.5 bg-secondary rounded w-3/4 mb-2" />
                 <div className="grid grid-cols-4 gap-2 mt-4">
-                  {[1,2,3,4].map(j => <div key={j} className="h-12 bg-secondary rounded-lg" />)}
+                  {[1, 2, 3, 4].map((j) => (
+                    <div key={j} className="h-12 bg-secondary rounded-lg" />
+                  ))}
                 </div>
               </div>
             ))}
@@ -219,11 +166,11 @@ const Tips = () => {
         )}
 
         {/* Card List */}
-        {!loading && (
+        {!isLoading && (
           <div className="space-y-3">
             <AnimatePresence mode="popLayout">
               {filtered.map((ipo, i) => (
-                <IpoCard key={ipo.id} ipo={ipo as any} index={i} />
+                <IpoCard key={ipo.id} ipo={ipo} index={i} />
               ))}
             </AnimatePresence>
             {filtered.length === 0 && (
@@ -235,7 +182,7 @@ const Tips = () => {
         )}
 
         {/* Disclaimer */}
-        {!loading && (
+        {!isLoading && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
