@@ -94,7 +94,6 @@ jobs:
     name: Market Snapshot (전체 종목 가격/PER/PBR)
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: refresh-fundamentals
     if: |
       github.event_name == 'schedule' && github.event.schedule == '0 21 * * *' ||
       github.event_name == 'workflow_dispatch' &&
