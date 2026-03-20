@@ -231,12 +231,3 @@ async def market_full_search(
         items=[MarketStock(**i) for i in results],
         total=len(matched),
     )
-
-
-@router.get("/debug/universe-count")
-async def debug_universe_count():
-    """임시 디버그 — universe 로드 건수 확인."""
-    uni = _fetch_universe()
-    kr = [r for r in uni if r.get("market") == "KR"]
-    sample = [{"symbol": r["symbol"], "name": r.get("name")} for r in kr[:3]]
-    return {"total": len(uni), "kr_count": len(kr), "sample": sample}

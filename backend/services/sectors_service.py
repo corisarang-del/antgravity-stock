@@ -18,7 +18,7 @@ import yfinance as yf
 
 from core.supabase_client import get_supabase
 from data.pipeline import TICKERS
-from services.fundamentals_service import get_fundamentals
+from services.financials_cache_service import read_all_fundamentals
 from services.runtime_cache import TtlCache
 
 logger = logging.getLogger(__name__)
@@ -349,6 +349,9 @@ def get_sectors() -> dict[str, Any]:
         if mktcap > 0:
             _SYMBOL_MKTCAP_CACHE[row["symbol"]] = mktcap
 
+    # fundamentals 캐시 한 번에 로드 (610번 호출 → 1번 호출)
+    all_fundamentals = read_all_fundamentals()
+
     # sector_map 구성
     sector_map: dict[str, list[dict]] = {}
 
@@ -357,12 +360,9 @@ def get_sectors() -> dict[str, Any]:
         sector_name = _SYMBOL_SECTOR_CACHE.get(sym, "Other")
         mktcap = _SYMBOL_MKTCAP_CACHE.get(sym, row.get("market_cap") or 0)
 
-        # AI signal: fundamentals 캐시에 있으면 사용, 없으면 WATCH
-        try:
-            f = get_fundamentals(sym)
-            score_total = (f.get("score") or {}).get("total", 0)
-        except Exception:
-            score_total = 0
+        # AI signal: 캐시된 fundamentals에서 조회, 없으면 WATCH
+        f = all_fundamentals.get(sym, {})
+        score_total = (f.get("score") or {}).get("total", 0)
 
         ai_signal = (
             "BUY" if score_total >= 65

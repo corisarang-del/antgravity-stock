@@ -15,14 +15,11 @@ import services.financials_cache_service as db_cache
 
 _HISTORY_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=86400)
 
-_KR_CORP_CODE: dict[str, str] = {
-    "005930.KS": "005930",
-    "000660.KS": "000660",
-    "005380.KS": "005380",
-    "012330.KS": "012330",
-    "267270.KS": "267270",
-    "035420.KS": "035420",
-}
+
+def _get_kr_corp_codes() -> dict[str, str]:
+    """fundamentals_service에서 재사용."""
+    from services.fundamentals_service import _get_kr_corp_codes as _get
+    return _get()
 
 
 def _safe_float(val: Any) -> float | None:
@@ -84,7 +81,7 @@ def _fetch_us_history(symbol: str) -> dict[str, Any]:
 
 
 def _fetch_kr_history(symbol: str) -> dict[str, Any]:
-    corp_code = _KR_CORP_CODE.get(symbol)
+    corp_code = _get_kr_corp_codes().get(symbol)
 
     if corp_code:
         try:
@@ -93,25 +90,66 @@ def _fetch_kr_history(symbol: str) -> dict[str, Any]:
             c = Company(corp_code)
             summary = c.fsSummary()
 
+            # dartlab v0.4+: IS/BS/FS가 polars DataFrame
+            is_df = summary.IS  # 손익계산서
+            bs_df = summary.BS  # 재무상태표
+
             annual: list[dict] = []
-            if summary is not None and not summary.empty:
-                for _, row in summary.iterrows():
-                    year = str(row.get("연도", ""))[:4]
-                    revenue = _safe_float(row.get("매출액"))
-                    operating_income = _safe_float(row.get("영업이익"))
-                    net_income = _safe_float(row.get("당기순이익"))
+
+            # IS DataFrame: 행이 항목명, 열이 연도
+            # polars DataFrame → dict 변환
+            items_map: dict[str, dict[str, float]] = {}
+            equity_map: dict[str, dict[str, float]] = {}
+
+            if is_df is not None and len(is_df) > 0:
+                item_col = is_df.columns[0]
+                rows = is_df.to_dicts()
+                for row in rows:
+                    item_name = str(row.get(item_col, ""))
+                    items_map[item_name] = {
+                        col: _safe_float(row.get(col))
+                        for col in is_df.columns[1:]
+                    }
+
+            # BS DataFrame에서 자본총계 추출 (ROE 계산용)
+            if bs_df is not None and len(bs_df) > 0:
+                item_col = bs_df.columns[0]
+                rows = bs_df.to_dicts()
+                for row in rows:
+                    item_name = str(row.get(item_col, ""))
+                    equity_map[item_name] = {
+                        col: _safe_float(row.get(col))
+                        for col in bs_df.columns[1:]
+                    }
+
+            # 연도별 데이터 구성
+            if is_df is not None and len(is_df) > 0:
+                years = is_df.columns[1:]
+                for year in years:
+                    revenue = items_map.get("매출액", {}).get(year)
+                    operating_income = items_map.get("영업이익", {}).get(year)
+                    net_income = items_map.get("연결총당기순이익", {}).get(year)
+                    # 자본총계 (지배기업 소유주 지분 우선, 없으면 자본총계)
+                    equity = (
+                        equity_map.get("지배기업 소유주 지분", {}).get(year)
+                        or equity_map.get("자본총계", {}).get(year)
+                    )
 
                     gross_margin = None
-                    if revenue and operating_income:
+                    if revenue and operating_income and revenue != 0:
                         gross_margin = operating_income / revenue
 
+                    roe = None
+                    if net_income and equity and equity != 0:
+                        roe = net_income / equity
+
                     annual.append({
-                        "year": year,
+                        "year": str(year),
                         "revenue": revenue,
                         "net_income": net_income,
                         "operating_income": operating_income,
                         "eps": None,
-                        "roe": None,
+                        "roe": roe,
                         "gross_margin": gross_margin,
                         "fcf": None,
                     })
@@ -137,7 +175,7 @@ def get_financial_history(symbol: str) -> dict[str, Any]:
         return _HISTORY_CACHE.set(symbol, db_data)
 
     # 3. 외부 API (dartlab / yfinance) → Supabase + TtlCache 저장
-    if symbol in _KR_CORP_CODE:
+    if symbol in _get_kr_corp_codes():
         data = _fetch_kr_history(symbol)
     else:
         data = _fetch_us_history(symbol)

@@ -52,8 +52,8 @@ export function HistoricalTable({ symbol }: Props) {
           </tr>
         </thead>
         <tbody>
-          {/* Rule 7.12 js-tosorted-immutable: toReversed()로 불변 역순 */}
-          {data.annual.toReversed().map((row) => (
+          {/* Rule 7.12 js-tosorted-immutable: toReversed()로 불변 역순, 최근 5년만 표시 */}
+          {data.annual.toReversed().slice(0, 5).map((row) => (
             <tr key={row.year} className="border-b border-border/30 hover:bg-secondary/30 transition-colors">
               <td className="py-2 pr-3 font-semibold">{row.year}</td>
               <td className="text-right py-2 px-3 font-mono">{fmtB(row.revenue)}</td>

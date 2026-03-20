@@ -1,6 +1,6 @@
 """재무지표 + Investment Score 서비스
 
-- KR 종목: dartlab Company().ratios (정규화된 재무)
+- KR 종목: dartlab Company().ratios (정규화된 재무) + 네이버 금융 (PER/PBR)
 - US 종목: yfinance Ticker().info
 - Investment Score 5카테고리 계산
 - Read 우선순위: TtlCache(인메모리) → Supabase → 외부API
@@ -9,22 +9,82 @@ from __future__ import annotations
 
 from typing import Any
 
+import requests
 import yfinance as yf
 
+from core.config import settings
 from services.runtime_cache import TtlCache
 import services.financials_cache_service as db_cache
 
+
 # ──────────────────────────────────────────────
-# KR 종목 → DART corp_code 매핑
+# 네이버 금융 크롤링 (KR 종목 PER/PBR)
 # ──────────────────────────────────────────────
-_KR_CORP_CODE: dict[str, str] = {
-    "005930.KS": "005930",  # 삼성전자
-    "000660.KS": "000660",  # SK하이닉스
-    "005380.KS": "005380",  # 현대자동차
-    "012330.KS": "012330",  # 현대모비스
-    "267270.KS": "267270",  # 효성중공업
-    "035420.KS": "035420",  # NAVER
-}
+def _fetch_naver_per_pbr(symbol: str) -> dict[str, float | None]:
+    """네이버 금융에서 PER, PBR 조회.
+
+    Args:
+        symbol: KR 종목 코드 (예: "005930.KS")
+
+    Returns:
+        {"per": float | None, "pbr": float | None}
+    """
+    # 005930.KS → 005930
+    code = symbol.replace(".KS", "").replace(".KQ", "")
+
+    try:
+        url = f"https://finance.naver.com/item/main.nhn?code={code}"
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+
+        resp = requests.get(url, headers=headers, timeout=5)
+        resp.raise_for_status()
+
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        per_el = soup.select_one("#_per")
+        pbr_el = soup.select_one("#_pbr")
+
+        per = float(per_el.text) if per_el and per_el.text else None
+        pbr = float(pbr_el.text) if pbr_el and pbr_el.text else None
+
+        return {"per": per, "pbr": pbr}
+    except Exception:
+        return {"per": None, "pbr": None}
+
+# ──────────────────────────────────────────────
+# KR 종목 → DART corp_code 매핑 (동적 로드)
+# ──────────────────────────────────────────────
+_KR_CORP_CODE_CACHE: dict[str, str] | None = None
+
+
+def _get_kr_corp_codes() -> dict[str, str]:
+    """ticker_universe에서 KR 종목 corp_code 매핑 로드 (캐시)."""
+    global _KR_CORP_CODE_CACHE
+    if _KR_CORP_CODE_CACHE is not None:
+        return _KR_CORP_CODE_CACHE
+
+    _KR_CORP_CODE_CACHE = {}
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
+        return _KR_CORP_CODE_CACHE
+
+    try:
+        from supabase import create_client
+        sb = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+        res = sb.table("ticker_universe").select("symbol").eq("market", "KR").execute()
+        for row in (res.data or []):
+            symbol = row["symbol"]
+            # 005930.KS → 005930
+            corp_code = symbol.replace(".KS", "").replace(".KQ", "")
+            _KR_CORP_CODE_CACHE[symbol] = corp_code
+    except Exception:
+        pass
+
+    return _KR_CORP_CODE_CACHE
+
+
+# 하위호환용 (레거시 코드에서 직접 접근 시)
+_KR_CORP_CODE: dict[str, str] = {}  # 초기화는 _get_kr_corp_codes()에서
 
 # 8시간 TTL 캐시 — 재무데이터는 하루 1~2회 갱신
 _FUND_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=28800)
@@ -167,10 +227,10 @@ def _fetch_us_fundamentals(symbol: str) -> dict[str, Any]:
 
 
 # ──────────────────────────────────────────────
-# KR 종목: dartlab
+# KR 종목: dartlab (v0.4+ dataclass API)
 # ──────────────────────────────────────────────
 def _fetch_kr_fundamentals(symbol: str) -> dict[str, Any]:
-    corp_code = _KR_CORP_CODE.get(symbol)
+    corp_code = _get_kr_corp_codes().get(symbol)
 
     # dartlab 시도
     if corp_code:
@@ -178,52 +238,59 @@ def _fetch_kr_fundamentals(symbol: str) -> dict[str, Any]:
             from dartlab import Company  # type: ignore[import]
 
             c = Company(corp_code)
-            ratios = c.ratios
+            r = c.ratios  # RatioResult dataclass
 
-            # ratios DataFrame에서 최신 연도 행 추출
-            latest = ratios.iloc[-1] if ratios is not None and not ratios.empty else None
+            # dartlab v0.4+: dataclass 직접 속성 접근 (값은 % 단위)
+            def _pct(val: float | None) -> float | None:
+                """% → ratio 변환 (8.29 → 0.0829)"""
+                return val / 100 if val is not None else None
 
-            def _r(col: str) -> float | None:
-                if latest is None:
-                    return None
-                val = latest.get(col)
-                return float(val) / 100 if val is not None else None  # % → ratio
+            roe = _pct(r.roe)
+            operating_margin = _pct(r.operatingMargin)
+            net_margin = _pct(r.netMargin)
+            debt_ratio = _pct(r.debtRatio)  # 부채비율
+            current_ratio = r.currentRatio / 100 if r.currentRatio else None  # % → ratio
+            revenue_growth = _pct(r.revenueGrowth)
+            earnings_growth = _pct(r.netProfitGrowth)
 
-            roe = _r("ROE")
-            operating_margin = _r("영업이익률")
-            net_margin = _r("순이익률")
-            debt_ratio = _r("부채비율")
+            # 부채비율 → D/E 변환: debt_ratio / (1 - debt_ratio)
             debt_to_equity = (debt_ratio / (1 - debt_ratio)) if debt_ratio and debt_ratio < 1 else None
+
+            # dartlab에서 제공하는 grossMargin 사용
+            gross_margin = _pct(r.grossMargin)
+            # FCF Yield 계산
+            fcf = r.fcf
+            fcf_yield = (fcf / r.revenueTTM) if fcf and r.revenueTTM else None
 
             data: dict[str, Any] = {
                 "symbol": symbol,
                 "source": "dartlab",
                 "roe": roe,
-                "gross_margin": None,
+                "gross_margin": gross_margin,
                 "operating_margin": operating_margin,
                 "net_margin": net_margin,
                 "debt_to_equity": debt_to_equity,
-                "current_ratio": None,
-                "trailing_pe": None,
-                "price_to_book": None,
+                "current_ratio": current_ratio,
+                "trailing_pe": r.per,  # dartlab은 None
+                "price_to_book": r.pbr,  # dartlab은 None
                 "peg_ratio": None,
-                "ev_to_ebitda": None,
-                "earnings_growth": None,
-                "revenue_growth": None,
-                "market_cap": None,
+                "ev_to_ebitda": r.evEbitda,  # dartlab은 None
+                "earnings_growth": earnings_growth,
+                "revenue_growth": revenue_growth,
+                "market_cap": r.marketCap,
                 "dividend_yield": None,
                 "fifty_two_week_high": None,
                 "fifty_two_week_low": None,
                 "sector": None,
                 "industry": None,
-                "fcf_yield": None,
+                "fcf_yield": fcf_yield,
             }
         except Exception:
             data = _kr_fallback_via_yfinance(symbol)
     else:
         data = _kr_fallback_via_yfinance(symbol)
 
-    # yfinance로 price/mktcap 보강
+    # yfinance로 price/mktcap/성장률/밸류에이션 보강
     try:
         info = yf.Ticker(symbol).info
 
@@ -235,6 +302,14 @@ def _fetch_kr_fundamentals(symbol: str) -> dict[str, Any]:
             data["trailing_pe"] = _f("trailingPE")
         if data.get("price_to_book") is None:
             data["price_to_book"] = _f("priceToBook")
+
+        # 네이버 금융에서 PER/PBR 보완 (KR 종목 yfinance 미제공 문제 해결)
+        if data.get("trailing_pe") is None or data.get("price_to_book") is None:
+            naver_data = _fetch_naver_per_pbr(symbol)
+            if data.get("trailing_pe") is None and naver_data.get("per"):
+                data["trailing_pe"] = naver_data["per"]
+            if data.get("price_to_book") is None and naver_data.get("pbr"):
+                data["price_to_book"] = naver_data["pbr"]
         if data.get("market_cap") is None:
             data["market_cap"] = _f("marketCap")
         if data.get("fifty_two_week_high") is None:
@@ -243,6 +318,29 @@ def _fetch_kr_fundamentals(symbol: str) -> dict[str, Any]:
             data["fifty_two_week_low"] = _f("fiftyTwoWeekLow")
         if data.get("sector") is None:
             data["sector"] = info.get("sector") or "산업재"
+        # 추가 필드 보완
+        if data.get("dividend_yield") is None:
+            data["dividend_yield"] = _f("dividendYield")
+        if data.get("ev_to_ebitda") is None:
+            data["ev_to_ebitda"] = _f("enterpriseToEbitda")
+        if data.get("earnings_growth") is None:
+            data["earnings_growth"] = _f("earningsGrowth")
+        if data.get("revenue_growth") is None:
+            data["revenue_growth"] = _f("revenueGrowth")
+        if data.get("gross_margin") is None:
+            data["gross_margin"] = _f("grossMargins")
+        # FCF Yield 계산 (yfinance FCF / market_cap)
+        if data.get("fcf_yield") is None:
+            fcf = _f("freeCashflow")
+            mktcap = data.get("market_cap") or _f("marketCap")
+            if fcf and mktcap and mktcap > 0:
+                data["fcf_yield"] = fcf / mktcap
+        # PEG 계산 (PER / EPS 성장률)
+        if data.get("peg_ratio") is None:
+            per = data.get("trailing_pe")
+            growth = data.get("earnings_growth")
+            if per and growth and growth > 0:
+                data["peg_ratio"] = per / (growth * 100)  # growth는 ratio (0.5 = 50%)
     except Exception:
         pass
 
@@ -302,7 +400,7 @@ def get_fundamentals(symbol: str) -> dict[str, Any]:
         return _FUND_CACHE.set(symbol, db_data)
 
     # 3. 외부 API (dartlab / yfinance) → Supabase + TtlCache 저장
-    if symbol in _KR_CORP_CODE:
+    if symbol in _get_kr_corp_codes():
         data = _fetch_kr_fundamentals(symbol)
     else:
         data = _fetch_us_fundamentals(symbol)

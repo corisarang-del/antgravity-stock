@@ -5,6 +5,7 @@ import asyncio
 import logging
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from typing import Any
 
 import yfinance as yf
@@ -12,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from core.supabase_client import get_supabase
 from data.pipeline import TICKERS
+from services.financials_cache_service import read_all_dividends
 from services.runtime_cache import TtlCache
 
 logger = logging.getLogger(__name__)
@@ -94,17 +96,45 @@ def _fetch_dividend_events(
 
 
 def _compute_dividend_calendar(year: int, month: int) -> dict[str, Any]:
-    """배당 캘린더 계산 (blocking I/O - executor에서 실행)"""
+    """배당 캘린더 계산 (Supabase 캐시 우선 → 폴백 yfinance)"""
     symbols_meta = _load_symbols_meta()
     calendar: dict[str, list] = defaultdict(list)
 
-    def _fetch(item: tuple[str, dict]) -> list[dict]:
-        return _fetch_dividend_events(item[0], item[1], year, month)
+    # 1. Supabase 캐시에서 일괄 조회 (25h 이내 데이터)
+    all_divs = read_all_dividends()
 
-    with ThreadPoolExecutor(max_workers=50) as pool:
-        for events in pool.map(_fetch, symbols_meta.items()):
-            for ev in events:
-                calendar[ev["ex_date"]].append(ev)
+    if all_divs:
+        # 캐시 히트: 빠른 경로
+        for symbol, divs in all_divs.items():
+            meta = symbols_meta.get(symbol, {})
+            for ev in divs:
+                ex_date = ev.get("ex_date", "")
+                if not ex_date:
+                    continue
+                # 연/월 필터링
+                try:
+                    dt = datetime.fromisoformat(ex_date)
+                    if dt.year == year and dt.month == month:
+                        calendar[ex_date].append({
+                            "symbol": symbol,
+                            "name": meta.get("name", symbol),
+                            "market": meta.get("market", "US"),
+                            "ex_date": ex_date,
+                            "pay_date": ev.get("pay_date"),
+                            "amount": ev.get("amount", 0),
+                            "yield": ev.get("yield"),
+                        })
+                except Exception:
+                    pass
+    else:
+        # 캐시 미스: yfinance 폴백 (느림)
+        def _fetch(item: tuple[str, dict]) -> list[dict]:
+            return _fetch_dividend_events(item[0], item[1], year, month)
+
+        with ThreadPoolExecutor(max_workers=50) as pool:
+            for events in pool.map(_fetch, symbols_meta.items()):
+                for ev in events:
+                    calendar[ev["ex_date"]].append(ev)
 
     summary = [
         {

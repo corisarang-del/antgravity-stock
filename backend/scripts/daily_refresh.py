@@ -9,6 +9,7 @@ FastAPI 서버 없이 독립 실행 가능.
     python backend/scripts/daily_refresh.py --phase universe --market KR
     python backend/scripts/daily_refresh.py --phase snapshot --market all
     python backend/scripts/daily_refresh.py --phase snapshot --date 20260315
+    python backend/scripts/daily_refresh.py --phase dividends  # 배당 수집
 
 환경변수 (GitHub Secrets 또는 .env):
     SUPABASE_URL
@@ -32,11 +33,44 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 # 환경변수 로드 후 임포트
-from services.fundamentals_service import _fetch_kr_fundamentals, _fetch_us_fundamentals, _KR_CORP_CODE  # noqa: E402
+from services.fundamentals_service import _fetch_kr_fundamentals, _fetch_us_fundamentals, _get_kr_corp_codes  # noqa: E402
 from services.history_service import _fetch_kr_history, _fetch_us_history  # noqa: E402
 import services.financials_cache_service as db_cache  # noqa: E402
 
-TICKERS = {
+
+def _get_all_symbols() -> dict[str, str]:
+    """ticker_universe에서 전체 심볼 로드."""
+    from core.config import settings
+    from supabase import create_client
+
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
+        return {}
+
+    sb = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+
+    # 페이지네이션으로 전체 조회
+    all_rows: list[dict] = []
+    page_size = 1000
+    offset = 0
+
+    while True:
+        res = (
+            sb.table("ticker_universe")
+            .select("symbol, name")
+            .range(offset, offset + page_size - 1)
+            .execute()
+        )
+        rows = res.data or []
+        all_rows.extend(rows)
+        if len(rows) < page_size:
+            break
+        offset += page_size
+
+    return {r["symbol"]: r.get("name", "") for r in all_rows}
+
+
+# 레거시: 하드코딩된 핵심 종목 (fallback용)
+_CORE_TICKERS = {
     # KR
     "005930.KS": "삼성전자",
     "000660.KS": "SK하이닉스",
@@ -57,13 +91,15 @@ TICKERS = {
 
 
 def _fetch_fundamentals(symbol: str) -> dict:
-    if symbol in _KR_CORP_CODE:
+    kr_codes = _get_kr_corp_codes()
+    if symbol in kr_codes:
         return _fetch_kr_fundamentals(symbol)
     return _fetch_us_fundamentals(symbol)
 
 
 def _fetch_history(symbol: str) -> dict:
-    if symbol in _KR_CORP_CODE:
+    kr_codes = _get_kr_corp_codes()
+    if symbol in kr_codes:
         return _fetch_kr_history(symbol)
     return _fetch_us_history(symbol)
 
@@ -90,9 +126,19 @@ def refresh_symbol(symbol: str, name: str) -> tuple[bool, bool]:
 
 
 def main(symbols: list[str] | None = None) -> None:
-    targets = {s: TICKERS[s] for s in symbols if s in TICKERS} if symbols else TICKERS
+    # 전체 종목 로드 (ticker_universe에서)
+    all_tickers = _get_all_symbols() or _CORE_TICKERS
 
-    print(f"[daily_refresh] 시작 — {len(targets)}개 심볼")
+    if symbols:
+        targets = {s: all_tickers.get(s, s) for s in symbols if s in all_tickers}
+    else:
+        targets = all_tickers
+
+    if not targets:
+        print("[daily_refresh] 대상 심볼 없음")
+        return
+
+    print(f"[daily_refresh] 시작 - {len(targets)}개 심볼")
     start = time.time()
 
     success = fail = 0
@@ -111,7 +157,7 @@ def main(symbols: list[str] | None = None) -> None:
         time.sleep(1)
 
     elapsed = time.time() - start
-    print(f"\n[daily_refresh] 완료 — 성공 {success}, 실패 {fail}, 소요 {elapsed:.1f}s")
+    print(f"\n[daily_refresh] 완료 - 성공 {success}, 실패 {fail}, 소요 {elapsed:.1f}s")
 
     if fail > 0:
         sys.exit(1)
@@ -124,7 +170,7 @@ def run_universe(market: str) -> None:
         collect_ticker_universe_us,
     )
 
-    print(f"[universe] 시작 — market={market}")
+    print(f"[universe] 시작 - market={market}")
 
     if market in ("KR", "all"):
         count = collect_ticker_universe_kr()
@@ -145,7 +191,7 @@ def run_snapshot(market: str, date_str: str) -> None:
         _cleanup_old_snapshots,
     )
 
-    print(f"[snapshot] 시작 — market={market}, date={date_str}")
+    print(f"[snapshot] 시작 - market={market}, date={date_str}")
 
     if market in ("KR", "all"):
         count = collect_kr_snapshot()
@@ -159,6 +205,81 @@ def run_snapshot(market: str, date_str: str) -> None:
     print("[snapshot] 오래된 스냅샷 정리 완료")
 
 
+def run_dividends() -> None:
+    """배당 데이터 수집 (전체 종목)."""
+    import yfinance as yf
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    # market_snapshot에서 전체 종목 심볼 조회
+    from core.supabase_client import get_supabase
+    sb = get_supabase()
+
+    snap = (
+        sb.table("market_snapshot")
+        .select("snapshot_date")
+        .order("snapshot_date", desc=True)
+        .limit(1)
+        .execute()
+    )
+    if not snap.data:
+        print("[dividends] snapshot 없음 - 스킵")
+        return
+
+    snap_date = snap.data[0]["snapshot_date"]
+    snaps = (
+        sb.table("market_snapshot")
+        .select("symbol")
+        .eq("snapshot_date", snap_date)
+        .execute()
+    )
+    symbols = [r["symbol"] for r in (snaps.data or [])]
+    if not symbols:
+        print("[dividends] 종목 없음 - 스킵")
+        return
+
+    total = len(symbols)
+    print(f"[dividends] 시작 - {total}개 종목")
+
+    def _fetch(symbol: str) -> tuple[str, list] | None:
+        try:
+            divs = yf.Ticker(symbol).dividends
+            if divs is None or divs.empty:
+                return None
+            data = []
+            for ts, amount in divs.items():
+                if hasattr(ts, "year"):
+                    data.append({
+                        "ex_date": ts.date().isoformat(),
+                        "amount": round(float(amount), 4),
+                    })
+            return (symbol, data) if data else None
+        except Exception:
+            return None
+
+    # 결과를 모아서 배치로 저장
+    results: list[tuple[str, list]] = []
+    processed = 0
+
+    with ThreadPoolExecutor(max_workers=20) as pool:
+        futures = {pool.submit(_fetch, sym): sym for sym in symbols}
+        for fut in as_completed(futures):
+            result = fut.result()
+            if result:
+                results.append(result)
+
+            processed += 1
+            # 500개마다 진행 로깅
+            if processed % 500 == 0:
+                print(f"[dividends] 진행: {processed}/{total} (배당있음: {len(results)})")
+
+    # 배치 저장 (500개씩)
+    if results:
+        saved = db_cache.write_dividends_batch(results)
+        print(f"[dividends] 완료 - {len(results)}개 종목 배당 데이터 저장 (batch: {saved})")
+    else:
+        print("[dividends] 완료 - 저장할 배당 데이터 없음")
+
+
 if __name__ == "__main__":
     import argparse
     import datetime
@@ -167,7 +288,7 @@ if __name__ == "__main__":
     parser.add_argument("--symbol", nargs="+", help="수집할 심볼 (fundamentals phase용)")
     parser.add_argument(
         "--phase",
-        choices=["fundamentals", "universe", "snapshot"],
+        choices=["fundamentals", "universe", "snapshot", "dividends"],
         default="fundamentals",
         help="수집 단계",
     )
@@ -190,3 +311,5 @@ if __name__ == "__main__":
     elif args.phase == "snapshot":
         date_str = args.date or datetime.date.today().strftime("%Y%m%d")
         run_snapshot(args.market, date_str)
+    elif args.phase == "dividends":
+        run_dividends()

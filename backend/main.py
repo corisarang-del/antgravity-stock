@@ -9,38 +9,25 @@ from core.config import settings
 from data.pipeline import MARKET_TICKER_SYMBOLS, TICKERS
 from routers import dashboard, dividends, market_full, predict, screener, sectors, sentiment, stocks, tips
 from services.market_snapshot_service import MarketSnapshotService
-from services.cache_warmer import start_scheduler, stop_scheduler, warm_all_from_supabase
+from services.cache_warmer import start_scheduler, stop_scheduler, warm_all_from_supabase, warm_sector_cache
 
 
 def _warmup_caches() -> None:
-    """서버 시작 시 주요 캐시를 백그라운드로 워밍업 (Supabase 없이도 동작)."""
+    """서버 시작 시 Supabase와 무관한 캐시만 워밍.
+
+    Supabase 기반 캐시(fundamentals, history, sectors)는 warm_all_from_supabase/warm_sector_cache에서 처리.
+    """
+    # prediction 캐시
     try:
         from services.prediction_service import get_prediction_payload
         get_prediction_payload("SPY", horizon=1)
     except Exception:
         pass
 
+    # market snapshot 미리보기
     try:
         svc = MarketSnapshotService()
         svc.preview_items()
-    except Exception:
-        pass
-
-    # 재무 데이터 프리페치 — Supabase가 비어있을 때 외부 API에서 미리 로드
-    try:
-        from services.fundamentals_service import get_fundamentals
-        for symbol in TICKERS:
-            try:
-                get_fundamentals(symbol)
-            except Exception:
-                pass
-    except Exception:
-        pass
-
-    # 섹터 히트맵 프리페치 — 첫 탭 전환 시 지연 방지
-    try:
-        from services.sectors_service import get_sectors
-        get_sectors()
     except Exception:
         pass
 
@@ -57,22 +44,43 @@ def _warmup_caches() -> None:
         pass
 
 
+# 백그라운드 태스크 참조 저장 (GC 방지)
+_background_tasks: list[asyncio.Task] = []
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. APScheduler 시작 (매일 KST 07:00 재워밍 등록)
-    start_scheduler()
-
-    # 2. 블로킹 캐시 워밍은 스레드풀에서 (이벤트 루프 차단 방지)
+    # 서버 먼저 시작, 워밍은 백그라운드에서 (논블로킹)
     loop = asyncio.get_running_loop()
-    loop.run_in_executor(None, _warmup_caches)
 
-    # 3. Supabase → TtlCache 워밍 (비동기, cold start 지연 방지)
-    asyncio.create_task(warm_all_from_supabase())
+    # 워밍을 executor에서 실행 (완전히 분리)
+    loop.run_in_executor(None, _warmup_sync_caches)
 
     yield
 
-    # 4. 종료 시 스케줄러 정리
+    # 서버 ready 후 스케줄러 시작 (매일 KST 07:00 재워밍)
+    start_scheduler()
     stop_scheduler()
+    _background_tasks.clear()
+
+
+def _warmup_sync_caches() -> None:
+    """동기 워밍 (executor에서 실행)."""
+    # 1. 기존 워밍
+    _warmup_caches()
+
+    # 2. Supabase 캐시 로드 (별도 스레드에서)
+    try:
+        import asyncio
+        from services.cache_warmer import warm_all_from_supabase, warm_sector_cache
+        # 새 이벤트 루프에서 실행
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(warm_all_from_supabase())
+        loop.run_until_complete(warm_sector_cache())
+        loop.close()
+    except Exception:
+        pass
 
 
 app = FastAPI(
