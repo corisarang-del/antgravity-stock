@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildCorsHeaders, getErrorMessage } from "../_shared/security.ts";
+import {
+  buildCorsHeaders,
+  enforceWebhookReplayProtection,
+  getErrorMessage,
+  verifySharedSecret,
+} from "../_shared/security.ts";
+
+const TOSS_WEBHOOK_SECRET = Deno.env.get("TOSS_WEBHOOK_SECRET") ?? "";
 
 serve(async (req) => {
   const cors = buildCorsHeaders(req);
@@ -9,8 +16,12 @@ serve(async (req) => {
   }
 
   try {
+    verifySharedSecret(req, TOSS_WEBHOOK_SECRET);
+
     const body = await req.json();
     const { eventType, data } = body;
+    const replayKey = `${eventType}:${data?.paymentKey ?? data?.customerKey ?? "unknown"}:${data?.status ?? "unknown"}`;
+    enforceWebhookReplayProtection(replayKey, 300);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,

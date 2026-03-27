@@ -4,6 +4,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
 ];
 
 const RATE_STORE = new Map<string, number[]>();
+const WEBHOOK_REPLAY_STORE = new Map<string, number>();
 
 export function buildCorsHeaders(req: Request) {
   const origin = req.headers.get("Origin");
@@ -64,4 +65,43 @@ export function getErrorMessage(error: unknown, fallback = "Internal server erro
     return error.message;
   }
   return fallback;
+}
+
+function timingSafeEqual(a: string, b: string) {
+  if (a.length !== b.length) return false;
+
+  let mismatch = 0;
+  for (let index = 0; index < a.length; index += 1) {
+    mismatch |= a.charCodeAt(index) ^ b.charCodeAt(index);
+  }
+  return mismatch === 0;
+}
+
+export function verifySharedSecret(req: Request, secret: string) {
+  if (!secret) {
+    throw new Error("MISSING_WEBHOOK_SECRET");
+  }
+
+  const headerSecret =
+    req.headers.get("x-toss-webhook-secret") ??
+    req.headers.get("x-webhook-secret") ??
+    req.headers.get("x-signature-secret");
+
+  const authHeader = req.headers.get("Authorization");
+  const bearerSecret = authHeader?.startsWith("Bearer ") ? authHeader.replace("Bearer ", "").trim() : null;
+  const candidate = headerSecret ?? bearerSecret;
+
+  if (!candidate || !timingSafeEqual(candidate, secret)) {
+    throw new Error("INVALID_WEBHOOK_SECRET");
+  }
+}
+
+export function enforceWebhookReplayProtection(key: string, ttlSeconds: number) {
+  const now = Date.now();
+  const expiresAt = WEBHOOK_REPLAY_STORE.get(key);
+  if (expiresAt && expiresAt > now) {
+    throw new Error("WEBHOOK_REPLAY_DETECTED");
+  }
+
+  WEBHOOK_REPLAY_STORE.set(key, now + ttlSeconds * 1000);
 }

@@ -129,7 +129,7 @@ def _build_ticker_item(symbol: str) -> dict:
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "env": settings.APP_ENV}
+    return {"status": "ok"}
 
 
 @app.get("/api/market-ticker")

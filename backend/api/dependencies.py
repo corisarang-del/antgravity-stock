@@ -39,7 +39,7 @@ def _extract_bearer_token(authorization: str | None) -> str | None:
 def resolve_user_id_from_authorization(authorization: str | None) -> str:
     token = _extract_bearer_token(authorization)
     if token is None:
-      return ANONYMOUS_USER_ID
+        raise HTTPException(status_code=401, detail={"code": "UNAUTHORIZED", "message": "Login required"})
 
     try:
         response = get_supabase().auth.get_user(jwt=token)
@@ -68,9 +68,6 @@ def get_dashboard_access_state(
 
 def require_pro_access(authorization: str | None = Header(default=None, alias="Authorization")):
     validated = resolve_user_id_from_authorization(authorization)
-    if validated == ANONYMOUS_USER_ID:
-        raise HTTPException(status_code=401, detail={"code": "UNAUTHORIZED", "message": "Login required"})
-
     state = AccessControlService().get_access_state(validated)
     if state.access_level != "pro":
         raise HTTPException(
