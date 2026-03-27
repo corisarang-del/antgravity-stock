@@ -114,7 +114,7 @@ const TipsDetail = () => {
           ].map(({ label, value, sub, icon: Icon }) => (
             <div key={label} className="glass rounded-xl p-4 border border-border">
               <div className="text-[11px] text-muted-foreground mb-2 flex items-center gap-1">
-                {Icon && <Icon className="w-3 h-3" />} {label}
+                {Icon ? <Icon className="w-3 h-3" /> : null} {label}
               </div>
               <div className="font-semibold text-sm">{value}</div>
               {sub && <div className="text-[11px] text-muted-foreground mt-0.5">{sub}</div>}

@@ -71,12 +71,27 @@ def _get_kr_corp_codes() -> dict[str, str]:
     try:
         from supabase import create_client
         sb = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
-        res = sb.table("ticker_universe").select("symbol").eq("market", "KR").execute()
-        for row in (res.data or []):
-            symbol = row["symbol"]
-            # 005930.KS → 005930
-            corp_code = symbol.replace(".KS", "").replace(".KQ", "")
-            _KR_CORP_CODE_CACHE[symbol] = corp_code
+
+        # 페이지네이션으로 전체 KR 종목 로드 (Supabase 기본 limit=1000)
+        page_size = 1000
+        offset = 0
+        while True:
+            res = (
+                sb.table("ticker_universe")
+                .select("symbol")
+                .eq("market", "KR")
+                .range(offset, offset + page_size - 1)
+                .execute()
+            )
+            batch = res.data or []
+            for row in batch:
+                symbol = row["symbol"]
+                # 005930.KS → 005930
+                corp_code = symbol.replace(".KS", "").replace(".KQ", "")
+                _KR_CORP_CODE_CACHE[symbol] = corp_code
+            if len(batch) < page_size:
+                break
+            offset += page_size
     except Exception:
         pass
 
@@ -230,6 +245,16 @@ def _fetch_us_fundamentals(symbol: str) -> dict[str, Any]:
 # KR 종목: dartlab (v0.4+ dataclass API)
 # ──────────────────────────────────────────────
 def _fetch_kr_fundamentals(symbol: str) -> dict[str, Any]:
+    """KR 종목 재무 데이터 수집.
+
+    최적화된 호출 순서:
+    1. dartlab (1차) - ROE, 마진, 성장률, 부채비율
+    2. 네이버 금융 (PER/PBR만) - dartlab에서 미제공 시에만
+    3. yfinance (보강) - 나머지 누락 필드만
+
+    이전: dartlab + yfinance + 네이버 모두 항상 호출
+    개선: dartlab 우선, 필요 시에만 폴백 체인 실행
+    """
     corp_code = _get_kr_corp_codes().get(symbol)
 
     # dartlab 시도
@@ -290,59 +315,71 @@ def _fetch_kr_fundamentals(symbol: str) -> dict[str, Any]:
     else:
         data = _kr_fallback_via_yfinance(symbol)
 
-    # yfinance로 price/mktcap/성장률/밸류에이션 보강
-    try:
-        info = yf.Ticker(symbol).info
+    # 최적화: PER/PBR이 없으면 네이버 금융 먼저 시도 (yfinance보다 빠름)
+    if data.get("trailing_pe") is None or data.get("price_to_book") is None:
+        naver_data = _fetch_naver_per_pbr(symbol)
+        if data.get("trailing_pe") is None and naver_data.get("per"):
+            data["trailing_pe"] = naver_data["per"]
+        if data.get("price_to_book") is None and naver_data.get("pbr"):
+            data["price_to_book"] = naver_data["pbr"]
 
-        def _f(key: str) -> float | None:
-            val = info.get(key)
-            return float(val) if val is not None else None
+    # yfinance로 나머지 누락 필드만 보강 (전체 호출 최소화)
+    missing_fields = [
+        k for k in [
+            "roe", "market_cap", "fifty_two_week_high", "fifty_two_week_low",
+            "sector", "dividend_yield", "ev_to_ebitda",
+            "earnings_growth", "revenue_growth", "gross_margin", "fcf_yield"
+        ]
+        if data.get(k) is None
+    ]
 
-        if data.get("trailing_pe") is None:
-            data["trailing_pe"] = _f("trailingPE")
-        if data.get("price_to_book") is None:
-            data["price_to_book"] = _f("priceToBook")
+    if missing_fields:
+        try:
+            info = yf.Ticker(symbol).info
 
-        # 네이버 금융에서 PER/PBR 보완 (KR 종목 yfinance 미제공 문제 해결)
-        if data.get("trailing_pe") is None or data.get("price_to_book") is None:
-            naver_data = _fetch_naver_per_pbr(symbol)
-            if data.get("trailing_pe") is None and naver_data.get("per"):
-                data["trailing_pe"] = naver_data["per"]
-            if data.get("price_to_book") is None and naver_data.get("pbr"):
-                data["price_to_book"] = naver_data["pbr"]
-        if data.get("market_cap") is None:
-            data["market_cap"] = _f("marketCap")
-        if data.get("fifty_two_week_high") is None:
-            data["fifty_two_week_high"] = _f("fiftyTwoWeekHigh")
-        if data.get("fifty_two_week_low") is None:
-            data["fifty_two_week_low"] = _f("fiftyTwoWeekLow")
-        if data.get("sector") is None:
-            data["sector"] = info.get("sector") or "산업재"
-        # 추가 필드 보완
-        if data.get("dividend_yield") is None:
-            data["dividend_yield"] = _f("dividendYield")
-        if data.get("ev_to_ebitda") is None:
-            data["ev_to_ebitda"] = _f("enterpriseToEbitda")
-        if data.get("earnings_growth") is None:
-            data["earnings_growth"] = _f("earningsGrowth")
-        if data.get("revenue_growth") is None:
-            data["revenue_growth"] = _f("revenueGrowth")
-        if data.get("gross_margin") is None:
-            data["gross_margin"] = _f("grossMargins")
-        # FCF Yield 계산 (yfinance FCF / market_cap)
-        if data.get("fcf_yield") is None:
-            fcf = _f("freeCashflow")
-            mktcap = data.get("market_cap") or _f("marketCap")
-            if fcf and mktcap and mktcap > 0:
-                data["fcf_yield"] = fcf / mktcap
-        # PEG 계산 (PER / EPS 성장률)
-        if data.get("peg_ratio") is None:
-            per = data.get("trailing_pe")
-            growth = data.get("earnings_growth")
-            if per and growth and growth > 0:
-                data["peg_ratio"] = per / (growth * 100)  # growth는 ratio (0.5 = 50%)
-    except Exception:
-        pass
+            def _f(key: str) -> float | None:
+                val = info.get(key)
+                return float(val) if val is not None else None
+
+            # 누락 필드만 채움
+            if data.get("roe") is None:
+                data["roe"] = _f("returnOnEquity")
+            if data.get("trailing_pe") is None:
+                data["trailing_pe"] = _f("trailingPE")
+            if data.get("price_to_book") is None:
+                data["price_to_book"] = _f("priceToBook")
+            if data.get("market_cap") is None:
+                data["market_cap"] = _f("marketCap")
+            if data.get("fifty_two_week_high") is None:
+                data["fifty_two_week_high"] = _f("fiftyTwoWeekHigh")
+            if data.get("fifty_two_week_low") is None:
+                data["fifty_two_week_low"] = _f("fiftyTwoWeekLow")
+            if data.get("sector") is None:
+                data["sector"] = info.get("sector") or "산업재"
+            if data.get("dividend_yield") is None:
+                data["dividend_yield"] = _f("dividendYield")
+            if data.get("ev_to_ebitda") is None:
+                data["ev_to_ebitda"] = _f("enterpriseToEbitda")
+            if data.get("earnings_growth") is None:
+                data["earnings_growth"] = _f("earningsGrowth")
+            if data.get("revenue_growth") is None:
+                data["revenue_growth"] = _f("revenueGrowth")
+            if data.get("gross_margin") is None:
+                data["gross_margin"] = _f("grossMargins")
+            if data.get("fcf_yield") is None:
+                fcf = _f("freeCashflow")
+                mktcap = data.get("market_cap") or _f("marketCap")
+                if fcf and mktcap and mktcap > 0:
+                    data["fcf_yield"] = fcf / mktcap
+        except Exception:
+            pass
+
+    # PEG 계산 (PER / EPS 성장률)
+    if data.get("peg_ratio") is None:
+        per = data.get("trailing_pe")
+        growth = data.get("earnings_growth")
+        if per and growth and growth > 0:
+            data["peg_ratio"] = per / (growth * 100)  # growth는 ratio (0.5 = 50%)
 
     data["score"] = _build_score(data)
     return data

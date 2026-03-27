@@ -1,23 +1,24 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { buildCorsHeaders, enforceRateLimit, ensureAllowedOrigin, getClientIp, getErrorMessage } from "../_shared/security.ts";
 
 serve(async (req) => {
+  const cors = buildCorsHeaders(req);
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: cors.headers });
   }
 
+  const blocked = ensureAllowedOrigin(req);
+  if (blocked) return blocked;
+
   try {
+    enforceRateLimit(`${getClientIp(req)}:toss-cancel`, 10, 60);
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors.headers, "Content-Type": "application/json" },
       });
     }
 
@@ -31,7 +32,7 @@ serve(async (req) => {
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors.headers, "Content-Type": "application/json" },
       });
     }
 
@@ -47,13 +48,14 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors.headers, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("[ERROR]", e);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const status = e instanceof Error && e.message === "RATE_LIMITED" ? 429 : 500;
+    const message = e instanceof Error && e.message === "RATE_LIMITED" ? "Too many requests" : getErrorMessage(e);
+    return new Response(JSON.stringify({ error: message }), {
+      status,
+      headers: { ...cors.headers, "Content-Type": "application/json" },
     });
   }
 });

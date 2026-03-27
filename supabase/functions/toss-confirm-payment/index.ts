@@ -1,27 +1,28 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { buildCorsHeaders, enforceRateLimit, ensureAllowedOrigin, getClientIp, getErrorMessage } from "../_shared/security.ts";
 
 const TOSS_SECRET_KEY = Deno.env.get("TOSS_SECRET_KEY") ?? "";
 const TOSS_API_BASE = "https://api.tosspayments.com/v1";
 
 serve(async (req) => {
+  const cors = buildCorsHeaders(req);
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: cors.headers });
   }
 
+  const blocked = ensureAllowedOrigin(req);
+  if (blocked) return blocked;
+
   try {
+    enforceRateLimit(`${getClientIp(req)}:toss-confirm`, 10, 60);
+
     // JWT로 유저 인증
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors.headers, "Content-Type": "application/json" },
       });
     }
 
@@ -36,7 +37,7 @@ serve(async (req) => {
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors.headers, "Content-Type": "application/json" },
       });
     }
 
@@ -45,32 +46,14 @@ serve(async (req) => {
     if (!authKey || !customerKey) {
       return new Response(JSON.stringify({ error: "authKey and customerKey are required" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors.headers, "Content-Type": "application/json" },
       });
     }
 
-    // TOSS_SECRET_KEY가 없으면 테스트 모드 응답
     if (!TOSS_SECRET_KEY) {
-      console.warn("[WARN] TOSS_SECRET_KEY not set. Returning mock Pro subscription.");
-      const periodStart = new Date();
-      const periodEnd = new Date();
-      periodEnd.setMonth(periodEnd.getMonth() + 1);
-
-      await supabase.from("subscriptions").upsert({
-        user_id: user.id,
-        plan: "pro",
-        status: "active",
-        toss_customer_key: customerKey,
-        toss_billing_key: "MOCK_BILLING_KEY",
-        toss_order_id: orderId ?? "MOCK_ORDER_ID",
-        current_period_start: periodStart.toISOString(),
-        current_period_end: periodEnd.toISOString(),
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" });
-
-      return new Response(JSON.stringify({ success: true, mock: true }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ error: "Payment server misconfigured" }), {
+        status: 500,
+        headers: { ...cors.headers, "Content-Type": "application/json" },
       });
     }
 
@@ -91,10 +74,9 @@ serve(async (req) => {
     const billingAuthData = await billingAuthRes.json();
 
     if (!billingAuthRes.ok) {
-      console.error("[ERROR] Billing auth failed:", billingAuthData);
       return new Response(
         JSON.stringify({ error: billingAuthData.message ?? "빌링키 발급 실패" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...cors.headers, "Content-Type": "application/json" } }
       );
     }
 
@@ -121,10 +103,9 @@ serve(async (req) => {
     const chargeData = await chargeRes.json();
 
     if (!chargeRes.ok) {
-      console.error("[ERROR] Billing charge failed:", chargeData);
       return new Response(
         JSON.stringify({ error: chargeData.message ?? "결제 실패" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...cors.headers, "Content-Type": "application/json" } }
       );
     }
 
@@ -147,13 +128,14 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ success: true, payment: chargeData }), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...cors.headers, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("[ERROR]", e);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const status = e instanceof Error && e.message === "RATE_LIMITED" ? 429 : 500;
+    const message = e instanceof Error && e.message === "RATE_LIMITED" ? "Too many requests" : getErrorMessage(e);
+    return new Response(JSON.stringify({ error: message }), {
+      status,
+      headers: { ...cors.headers, "Content-Type": "application/json" },
     });
   }
 });

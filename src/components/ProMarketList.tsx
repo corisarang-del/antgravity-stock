@@ -148,7 +148,11 @@ export function ProMarketList({ onSelect }: Props) {
                   <tr
                     key={stock.symbol}
                     onClick={() => onSelect?.(stock.symbol)}
-                    className="border-b border-border/30 hover:bg-secondary/40 transition-colors cursor-pointer"
+                    onKeyDown={(e) => e.key === "Enter" && onSelect?.(stock.symbol)}
+                    tabIndex={0}
+                    role="button"
+                    className="border-b border-border/30 hover:bg-secondary/40 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    style={{ contentVisibility: "auto" }}
                   >
                     <td className="py-2.5 pr-3 font-semibold truncate max-w-[120px]">
                       {stock.name ?? stock.symbol}

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, BarChart2, Star, Trash2, TrendingUp, TrendingDown, ExternalLink, Plus, Crown, Search } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { useSubscription } from "@/hooks/useSubscription";
 import { STOCKS } from "@/data/stockData";
@@ -11,6 +11,8 @@ import { UserMenu } from "@/components/UserMenu";
 import { AddWatchModal } from "@/components/AddWatchModal";
 import { PricingModal } from "@/components/PricingModal";
 import { FREE_LIMITS } from "@/config/toss";
+
+const STOCK_BY_SYMBOL = new Map(STOCKS.map((stock) => [stock.symbol, stock]));
 
 const Watchlist = () => {
   const { user, loading: authLoading } = useAuth();
@@ -28,11 +30,18 @@ const Watchlist = () => {
     else setShowAdd(true);
   };
 
-  const filtered = watchlist.filter(
-    (item) =>
-      item.symbol.toLowerCase().includes(search.toLowerCase()) ||
-      item.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    if (!normalizedSearch) {
+      return watchlist;
+    }
+
+    return watchlist.filter(
+      (item) =>
+        item.symbol.toLowerCase().includes(normalizedSearch) ||
+        item.name.toLowerCase().includes(normalizedSearch)
+    );
+  }, [search, watchlist]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -167,7 +176,7 @@ const Watchlist = () => {
                 </div>
                 <AnimatePresence>
                   {filtered.map((item, idx) => {
-                    const stock = STOCKS.find((s) => s.symbol === item.symbol);
+                    const stock = STOCK_BY_SYMBOL.get(item.symbol);
                     const isGain = stock ? stock.changePct >= 0 : false;
                     return (
                       <motion.div
@@ -233,9 +242,9 @@ const Watchlist = () => {
       </main>
 
       <AnimatePresence>
-        {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
-        {showAdd && <AddWatchModal onClose={() => setShowAdd(false)} />}
-        {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
+        {showAuth ? <AuthModal onClose={() => setShowAuth(false)} /> : null}
+        {showAdd ? <AddWatchModal onClose={() => setShowAdd(false)} /> : null}
+        {showPricing ? <PricingModal onClose={() => setShowPricing(false)} /> : null}
       </AnimatePresence>
     </div>
   );

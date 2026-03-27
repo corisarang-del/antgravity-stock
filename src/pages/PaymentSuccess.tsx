@@ -3,7 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CheckCircle, Loader2, XCircle, Brain } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -35,7 +35,7 @@ const PaymentSuccess = () => {
         setStatus("error");
       }
     });
-  }, [user]);
+  }, [confirmPayment, searchParams, user]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">

@@ -19,6 +19,41 @@ serve(async (req) => {
   }
 
   try {
+    interface DartIpoItemRaw {
+      rcept_no?: string;
+      subscrib_dt?: string;
+      list_dt?: string;
+      issue_price?: string;
+      lead_mang?: string;
+      corp_name?: string;
+      stock_knd?: string;
+    }
+
+    interface DartApiResponse {
+      status?: string;
+      message?: string;
+      list?: DartIpoItemRaw[];
+    }
+
+    interface NormalizedIpoItem {
+      id: string;
+      company: string;
+      status: "upcoming" | "open" | "closed";
+      subscriptionStart: string;
+      subscriptionEnd: string;
+      listingDate: string;
+      offerPrice: string;
+      priceRange: string;
+      leadUnderwriter: string;
+      summary: string;
+      sector: string;
+      marketCap: string;
+      rceptNo?: string;
+    }
+
+    const getErrorMessage = (error: unknown): string =>
+      error instanceof Error ? error.message : String(error);
+
     const today = new Date();
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 3);
@@ -37,20 +72,21 @@ serve(async (req) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
 
-    let data: any;
+    let data: DartApiResponse;
     try {
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(timeout);
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
-      data = await res.json();
-    } catch (fetchErr: any) {
+      data = await res.json() as DartApiResponse;
+    } catch (fetchErr: unknown) {
       clearTimeout(timeout);
       // Network/TLS error — return empty list so client falls back gracefully
-      console.error("DART fetch error:", fetchErr.message);
+      const message = getErrorMessage(fetchErr);
+      console.error("DART fetch error:", message);
       return new Response(
-        JSON.stringify({ error: fetchErr.message, list: [], fallback: true }),
+        JSON.stringify({ error: message, list: [], fallback: true }),
         {
           status: 200, // Return 200 so client can read the body
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -72,7 +108,7 @@ serve(async (req) => {
 
     const todayStr = fmt(today);
 
-    const normalized = (data.list || []).map((item: any, idx: number) => {
+    const normalized: NormalizedIpoItem[] = (data.list || []).map((item, idx) => {
       const subDt: string = item.subscrib_dt ?? "";
       const [subStart, subEnd] = subDt.includes("~")
         ? subDt.split("~").map((s: string) => s.trim())
@@ -118,15 +154,16 @@ serve(async (req) => {
     });
 
     const order = { open: 0, upcoming: 1, closed: 2 };
-    normalized.sort((a: any, b: any) => order[a.status] - order[b.status]);
+    normalized.sort((a, b) => order[a.status] - order[b.status]);
 
     return new Response(JSON.stringify({ list: normalized }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err: any) {
-    console.error("Unexpected error:", err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Unexpected error:", message);
     return new Response(
-      JSON.stringify({ error: err.message, list: [], fallback: true }),
+      JSON.stringify({ error: message, list: [], fallback: true }),
       {
         status: 200, // Always 200 so client reads body
         headers: { ...corsHeaders, "Content-Type": "application/json" },

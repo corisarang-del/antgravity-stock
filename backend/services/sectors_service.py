@@ -379,5 +379,45 @@ def get_sectors() -> dict[str, Any]:
         }
         sector_map.setdefault(sector_name, []).append(stock_item)
 
+    # 섹터 캐시를 DB에 일괄 저장 (비동기로 실행하지 않고 즉시 실행)
+    _persist_sectors_to_db()
+
     result = _assemble_sectors(sector_map)
     return _SECTOR_CACHE.set("__all__", result)
+
+
+def _persist_sectors_to_db() -> int:
+    """_SYMBOL_SECTOR_CACHE의 섹터를 ticker_universe에 일괄 저장.
+
+    Returns: 업데이트된 행 수
+    """
+    if not _SYMBOL_SECTOR_CACHE:
+        return 0
+
+    try:
+        client = get_supabase()
+
+        # 배치 업데이트 (100개씩)
+        updated = 0
+        batch_size = 100
+        items = list(_SYMBOL_SECTOR_CACHE.items())
+
+        for i in range(0, len(items), batch_size):
+            batch = items[i:i + batch_size]
+            for symbol, sector in batch:
+                try:
+                    client.table("ticker_universe").update({
+                        "sector": sector,
+                        "updated_at": "now()"
+                    }).eq("symbol", symbol).execute()
+                    updated += 1
+                except Exception:
+                    pass
+
+        if updated > 0:
+            logger.info(f"[sectors] DB에 섹터 {updated}개 업데이트 완료")
+
+        return updated
+    except Exception:
+        logger.exception("[sectors] DB 섹터 업데이트 실패")
+        return 0

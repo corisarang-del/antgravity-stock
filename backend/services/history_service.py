@@ -24,7 +24,13 @@ def _get_kr_corp_codes() -> dict[str, str]:
 
 def _safe_float(val: Any) -> float | None:
     try:
-        return float(val) if val is not None else None
+        if val is None:
+            return None
+        f = float(val)
+        # nan, inf 등 JSON 직렬화 불가능한 값은 None으로 변환
+        if f != f:  # nan check
+            return None
+        return f
     except (TypeError, ValueError):
         return None
 
@@ -40,30 +46,39 @@ def _fetch_us_history(symbol: str) -> dict[str, Any]:
     if financials is not None and not financials.empty:
         for col in financials.columns:
             year = str(col.year) if hasattr(col, "year") else str(col)[:4]
-            revenue = _safe_float(financials.get("Total Revenue", {}).get(col))
-            net_income = _safe_float(financials.get("Net Income", {}).get(col))
-            operating_income = _safe_float(financials.get("Operating Income", {}).get(col))
-            gross_profit = _safe_float(financials.get("Gross Profit", {}).get(col))
+
+            # 올바른 DataFrame 접근: loc[행이름, 열이름]
+            def get_value(df, row_name, col_name):
+                try:
+                    if df is not None and not df.empty and row_name in df.index and col_name in df.columns:
+                        return _safe_float(df.loc[row_name, col_name])
+                except (KeyError, TypeError):
+                    pass
+                return None
+
+            revenue = get_value(financials, "Total Revenue", col)
+            net_income = get_value(financials, "Net Income", col)
+            operating_income = get_value(financials, "Operating Income", col)
+            gross_profit = get_value(financials, "Gross Profit", col)
 
             fcf = None
-            eps = None
             roe = None
             gross_margin = None
 
-            if cashflow is not None and not cashflow.empty and col in cashflow.columns:
-                op_cf = _safe_float(cashflow.get("Operating Cash Flow", {}).get(col))
-                capex = _safe_float(cashflow.get("Capital Expenditure", {}).get(col))
-                if op_cf is not None and capex is not None:
-                    fcf = op_cf + capex  # capex는 음수
+            # Cash flow에서 FCF 계산
+            op_cf = get_value(cashflow, "Operating Cash Flow", col)
+            capex = get_value(cashflow, "Capital Expenditure", col)
+            if op_cf is not None and capex is not None:
+                fcf = op_cf + capex  # capex는 음수
 
-            if revenue and gross_profit:
-                gross_margin = gross_profit / revenue if revenue != 0 else None
+            # Gross margin 계산
+            if revenue and gross_profit and revenue != 0:
+                gross_margin = gross_profit / revenue
 
-            # EPS, ROE는 balance sheet 필요
-            if balance is not None and not balance.empty and col in balance.columns:
-                equity = _safe_float(balance.get("Stockholders Equity", {}).get(col))
-                if equity and net_income:
-                    roe = net_income / equity
+            # Balance sheet에서 ROE 계산
+            equity = get_value(balance, "Stockholders Equity", col)
+            if equity and net_income and equity != 0:
+                roe = net_income / equity
 
             annual.append({
                 "year": year,
@@ -77,6 +92,8 @@ def _fetch_us_history(symbol: str) -> dict[str, Any]:
             })
 
     annual.sort(key=lambda x: x["year"])
+    # 최근 5개년만 반환
+    annual = annual[-5:] if len(annual) > 5 else annual
     return {"symbol": symbol, "annual": annual}
 
 
@@ -155,6 +172,8 @@ def _fetch_kr_history(symbol: str) -> dict[str, Any]:
                     })
 
             annual.sort(key=lambda x: x["year"])
+            # 최근 5개년만 반환
+            annual = annual[-5:] if len(annual) > 5 else annual
             return {"symbol": symbol, "annual": annual}
         except Exception:
             pass

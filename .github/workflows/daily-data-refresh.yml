@@ -21,6 +21,7 @@ on:
           - fundamentals
           - universe
           - snapshot
+          - dividends
           - all
 
 jobs:
@@ -117,3 +118,31 @@ jobs:
 
       - name: Collect market snapshot (KR + US)
         run: python backend/scripts/daily_refresh.py --phase snapshot --market all
+
+  refresh-dividends:
+    name: Dividends Cache (전체 종목 배당 데이터)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: |
+      github.event_name == 'schedule' && github.event.schedule == '0 21 * * *' ||
+      github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.phase == 'dividends' || github.event.inputs.phase == 'all')
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements-ci.txt
+
+      - name: Collect dividends (yfinance)
+        run: python backend/scripts/daily_refresh.py --phase dividends

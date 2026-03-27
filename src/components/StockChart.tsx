@@ -21,12 +21,24 @@ interface StockChartProps {
   isGain: boolean;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface StockChartTooltipDatum {
+  dataKey?: string;
+  color?: string;
+  value?: number;
+}
+
+interface StockChartTooltipProps {
+  active?: boolean;
+  payload?: StockChartTooltipDatum[];
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: StockChartTooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="glass rounded-lg p-3 text-xs shadow-xl">
         <div className="text-muted-foreground mb-2 font-medium">{label}</div>
-        {payload.map((p: any) => (
+        {payload.map((p) => (
           <div key={p.dataKey} className="flex items-center gap-2 mb-1">
             <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
             <span className="text-muted-foreground">

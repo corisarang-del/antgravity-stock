@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Home, BookOpen, Lightbulb, Zap, Sun, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { UserMenu } from "@/components/UserMenu";
 import { MarketTicker } from "@/components/MarketOverview";
 import { AuthModal } from "@/components/AuthModal";
@@ -104,7 +104,7 @@ export function AppShell({ children, hideTicker }: AppShellProps) {
       </header>
 
       {/* Ticker */}
-      {!hideTicker && <MarketTicker />}
+      {!hideTicker ? <MarketTicker /> : null}
 
       {/* Page Content */}
       <main className="flex-1 pb-20 md:pb-0">
@@ -148,7 +148,7 @@ export function AppShell({ children, hideTicker }: AppShellProps) {
       </nav>
 
       <AnimatePresence>
-        {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+        {showAuth ? <AuthModal onClose={() => setShowAuth(false)} /> : null}
       </AnimatePresence>
     </div>
   );

@@ -3,13 +3,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Zap, Check, Star, Brain, Bell, Wallet, Crown, Loader2,
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { TOSS_CLIENT_KEY, TOSS_PLAN } from "@/config/toss";
 import { AuthModal } from "@/components/AuthModal";
+import { getSafeRedirectUrl } from "@/lib/authRedirect";
 
 interface Props {
   onClose: () => void;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
 }
 
 const FREE_FEATURES = [
@@ -50,8 +58,8 @@ export function PricingModal({ onClose }: Props) {
 
       await payment.requestBillingAuth({
         method: "CARD",
-        successUrl: `${window.location.origin}/payment/success`,
-        failUrl: `${window.location.origin}/payment/fail`,
+        successUrl: getSafeRedirectUrl("/payment/success"),
+        failUrl: getSafeRedirectUrl("/payment/fail"),
         customerEmail: user.email ?? "",
         customerName:
           user.user_metadata?.full_name ??
@@ -60,12 +68,18 @@ export function PricingModal({ onClose }: Props) {
           "고객",
       });
       // requestBillingAuth는 페이지를 이동하므로 이후 코드 실행 안 됨
-    } catch (e: any) {
+    } catch (e: unknown) {
       // 사용자가 취소한 경우
-      if (e?.code === "USER_CANCEL") {
+      const userCancel =
+        typeof e === "object" &&
+        e !== null &&
+        "code" in e &&
+        e.code === "USER_CANCEL";
+
+      if (userCancel) {
         setError(null);
       } else {
-        setError(e?.message ?? "결제 창을 열지 못했습니다. 토스페이먼츠 키를 확인해주세요.");
+        setError(getErrorMessage(e, "결제 창을 열지 못했습니다. 토스페이먼츠 키를 확인해주세요."));
       }
       setLoading(false);
     }

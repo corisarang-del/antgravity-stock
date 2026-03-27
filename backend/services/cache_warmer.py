@@ -24,7 +24,11 @@ _REWARM_MINUTE_KST = 0
 _SECTOR_HOUR_KST = 7
 _SECTOR_MINUTE_KST = 10
 
-# 스크리너 사전 실행: 섹터 워밍(07:10) 완료 후 20분 여유
+# 배당 캘린더 워밍: 섹터 워밍(07:10) 완료 후 5분
+_DIVIDENDS_HOUR_KST = 7
+_DIVIDENDS_MINUTE_KST = 15
+
+# 스크리너 사전 실행: 배당 워밍(07:15) 완료 후 15분 여유
 _SCREENER_HOUR_KST = 7
 _SCREENER_MINUTE_KST = 30
 
@@ -149,6 +153,87 @@ async def warm_sector_cache() -> None:
         logger.exception("[cache_warmer] 섹터 워밍 실패")
 
 
+async def warm_dividends_from_supabase() -> None:
+    """배당 캘린더 캐시 워밍.
+
+    Supabase dividends_cache에서 현재 월/다음 달 데이터를 미리 로드해
+    첫 배당 캘린더 API 요청 시 즉시 응답하도록 _DIV_CACHE에 저장.
+    """
+    import datetime
+    from collections import defaultdict
+    from services.financials_cache_service import read_all_dividends
+
+    try:
+        # 현재 날짜 기준으로 현재 월과 다음 달 계산
+        today = datetime.date.today()
+        months_to_warm = [
+            (today.year, today.month),
+        ]
+
+        # 다음 달 추가 (12월인 경우次年 1월)
+        if today.month == 12:
+            months_to_warm.append((today.year + 1, 1))
+        else:
+            months_to_warm.append((today.year, today.month + 1))
+
+        # Supabase에서 전체 배당 데이터 로드
+        all_divs = read_all_dividends()
+        if not all_divs:
+            logger.warning("[cache_warmer] 배당 캐시 데이터 없음 — 스킵")
+            return
+
+        # 배치 처리를 위한 yield 포인트
+        warmed = 0
+        for year, month in months_to_warm:
+            calendar: dict[str, list] = defaultdict(list)
+            div_count = 0
+
+            for symbol, divs in all_divs.items():
+                for ev in divs:
+                    ex_date = ev.get("ex_date", "")
+                    if not ex_date:
+                        continue
+                    try:
+                        dt = datetime.datetime.fromisoformat(ex_date)
+                        if dt.year == year and dt.month == month:
+                            calendar[ex_date].append({
+                                "symbol": symbol,
+                                "name": ev.get("name", symbol),
+                                "market": ev.get("market", "US"),
+                                "ex_date": ex_date,
+                                "pay_date": ev.get("pay_date"),
+                                "amount": ev.get("amount", 0),
+                                "yield": ev.get("yield"),
+                            })
+                            div_count += 1
+                    except Exception:
+                        pass
+
+            if calendar:
+                summary = [
+                    {
+                        "date": date,
+                        "count": len(items),
+                        "total_amount": round(sum(e["amount"] for e in items), 4),
+                    }
+                    for date, items in sorted(calendar.items())
+                ]
+                result = {"calendar": dict(calendar), "summary": summary}
+
+                # dividends.py의 _DIV_CACHE에 저장
+                from routers.dividends import _DIV_CACHE
+                cache_key = f"{year}-{month:02d}"
+                _DIV_CACHE.set(cache_key, result)
+                warmed += 1
+                logger.info(f"[cache_warmer] 배당 캘린더 워밍 — {year}-{month:02d}: {div_count}개 이벤트")
+
+            await asyncio.sleep(0)  # 이벤트 루프 양보
+
+        logger.info(f"[cache_warmer] 배당 캘린더 워밍 완료 — {warmed}개월")
+    except Exception:
+        logger.exception("[cache_warmer] 배당 캘린더 워밍 실패")
+
+
 def start_scheduler() -> AsyncIOScheduler:
     """APScheduler 시작. FastAPI lifespan에서 호출."""
     global _scheduler
@@ -175,7 +260,17 @@ def start_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
 
-    # 매일 KST 07:30 스크리너 사전 실행 (섹터 워밍 완료 후)
+    # 매일 KST 07:15 배당 캘린더 워밍 (섹터 워밍 완료 후)
+    _scheduler.add_job(
+        warm_dividends_from_supabase,
+        trigger="cron",
+        hour=_DIVIDENDS_HOUR_KST,
+        minute=_DIVIDENDS_MINUTE_KST,
+        id="daily_dividends_warm",
+        replace_existing=True,
+    )
+
+    # 매일 KST 07:30 스크리너 사전 실행 (배당 워밍 완료 후)
     _scheduler.add_job(
         warm_screener_cache,
         trigger="cron",
@@ -190,6 +285,7 @@ def start_scheduler() -> AsyncIOScheduler:
         f"[cache_warmer] 스케줄러 시작 — "
         f"재무 KST {_REWARM_HOUR_KST:02d}:{_REWARM_MINUTE_KST:02d}, "
         f"섹터 KST {_SECTOR_HOUR_KST:02d}:{_SECTOR_MINUTE_KST:02d}, "
+        f"배당 KST {_DIVIDENDS_HOUR_KST:02d}:{_DIVIDENDS_MINUTE_KST:02d}, "
         f"스크리너 KST {_SCREENER_HOUR_KST:02d}:{_SCREENER_MINUTE_KST:02d}"
     )
     return _scheduler

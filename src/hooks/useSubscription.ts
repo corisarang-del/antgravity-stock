@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
+import type { Tables } from "@/integrations/supabase/types";
 
 export interface Subscription {
   id: string;
@@ -9,6 +10,8 @@ export interface Subscription {
   currentPeriodEnd: string | null;
   cancelledAt: string | null;
 }
+
+type SubscriptionRow = Tables<"subscriptions">;
 
 export function useSubscription() {
   const { user, session } = useAuth();
@@ -22,18 +25,19 @@ export function useSubscription() {
     }
     setLoading(true);
     const { data, error } = await supabase
-      .from("subscriptions" as any)
+      .from("subscriptions")
       .select("*")
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (!error && data) {
+      const row = data as SubscriptionRow;
       setSubscription({
-        id: (data as any).id,
-        plan: (data as any).plan,
-        status: (data as any).status,
-        currentPeriodEnd: (data as any).current_period_end,
-        cancelledAt: (data as any).cancelled_at,
+        id: row.id,
+        plan: row.plan as Subscription["plan"],
+        status: row.status as Subscription["status"],
+        currentPeriodEnd: row.current_period_end,
+        cancelledAt: row.cancelled_at,
       });
     } else if (!data) {
       // 구독 row가 없으면 free로 설정
@@ -51,7 +55,7 @@ export function useSubscription() {
     subscription?.plan === "pro" &&
     (subscription?.status === "active" || subscription?.status === "cancelled");
 
-  const confirmPayment = async (authKey: string, customerKey: string) => {
+  const confirmPayment = useCallback(async (authKey: string, customerKey: string) => {
     if (!session) return { success: false, error: "로그인이 필요합니다." };
 
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -79,9 +83,9 @@ export function useSubscription() {
       return { success: true };
     }
     return { success: false, error: data.error ?? "결제 실패" };
-  };
+  }, [fetchSubscription, session, user]);
 
-  const cancelSubscription = async () => {
+  const cancelSubscription = useCallback(async () => {
     if (!session) return { success: false };
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     const res = await fetch(
@@ -100,7 +104,7 @@ export function useSubscription() {
       return { success: true };
     }
     return { success: false };
-  };
+  }, [fetchSubscription, session]);
 
   return { subscription, loading, isPro, fetchSubscription, confirmPayment, cancelSubscription };
 }

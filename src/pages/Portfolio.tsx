@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, Plus, BarChart2, Wallet, Crown, TrendingUp, TrendingDown } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PortfolioChart } from "@/components/PortfolioChart";
@@ -25,7 +25,7 @@ export interface Holding {
 
 const Portfolio = () => {
   const { user, loading: authLoading } = useAuth();
-  const { holdings, loading, addHolding, removeHolding } = usePortfolio();
+  const { holdings, summary, loading, addHolding, removeHolding } = usePortfolio();
   const { isPro } = useSubscription();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
@@ -130,7 +130,7 @@ const Portfolio = () => {
         ) : (
           <>
             {/* Summary Cards */}
-            <PortfolioSummary holdings={holdings} />
+            <PortfolioSummary holdings={holdings} summary={summary} />
 
             {/* Chart + Table Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -178,8 +178,8 @@ const Portfolio = () => {
             onAdd={(h) => { addHolding(h); setShowAddModal(false); }}
           />
         )}
-        {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
-        {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
+        {showAuth ? <AuthModal onClose={() => setShowAuth(false)} /> : null}
+        {showPricing ? <PricingModal onClose={() => setShowPricing(false)} /> : null}
       </AnimatePresence>
     </div>
   );
@@ -188,7 +188,7 @@ const Portfolio = () => {
 function ReturnBars({ holdings }: { holdings: Holding[] }) {
   const items = holdings
     .map((h) => ({ symbol: h.symbol, returnPct: ((h.currentPrice - h.avgPrice) / h.avgPrice) * 100 }))
-    .sort((a, b) => b.returnPct - a.returnPct);
+    .toSorted((a, b) => b.returnPct - a.returnPct);
   const maxAbs = Math.max(...items.map((i) => Math.abs(i.returnPct)), 1);
 
   return (

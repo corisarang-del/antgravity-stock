@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LogOut, Wallet, Star, Bell, Crown, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PricingModal } from "@/components/PricingModal";
 import antCharacter from "@/assets/ant_character.png";
@@ -135,7 +135,7 @@ export function UserMenu() {
       </div>
 
       <AnimatePresence>
-        {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
+        {showPricing ? <PricingModal onClose={() => setShowPricing(false)} /> : null}
       </AnimatePresence>
     </>
   );

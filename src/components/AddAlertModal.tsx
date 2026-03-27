@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { X, Search, Bell } from "lucide-react";
 import { STOCKS } from "@/data/stockData";
 import { useAlerts } from "@/hooks/useAlerts";
 
 interface Props { onClose: () => void; }
+
+const STOCK_BY_SYMBOL = new Map(STOCKS.map((stock) => [stock.symbol, stock]));
 
 export function AddAlertModal({ onClose }: Props) {
   const { addAlert } = useAlerts();
@@ -15,9 +17,15 @@ export function AddAlertModal({ onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const filtered = STOCKS.filter(
-    (s) => s.symbol.toLowerCase().includes(query.toLowerCase()) || s.name.toLowerCase().includes(query.toLowerCase())
-  ).slice(0, 6);
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return STOCKS.filter(
+      (stock) =>
+        stock.symbol.toLowerCase().includes(normalizedQuery) ||
+        stock.name.toLowerCase().includes(normalizedQuery)
+    ).slice(0, 6);
+  }, [query]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +75,7 @@ export function AddAlertModal({ onClose }: Props) {
               {showDropdown && query && filtered.length > 0 && (
                 <div className="absolute top-full mt-1 left-0 right-0 z-10 glass rounded-lg border border-border shadow-xl overflow-hidden">
                   {filtered.map((stock) => (
-                    <button key={stock.symbol} type="button" onClick={() => { setSelected(stock); setQuery(stock.symbol); setTargetPrice(stock.price.toString()); setShowDropdown(false); }}
+                    <button key={stock.symbol} type="button" onClick={() => { setSelected(STOCK_BY_SYMBOL.get(stock.symbol) ?? stock); setQuery(stock.symbol); setTargetPrice(stock.price.toString()); setShowDropdown(false); }}
                       className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-secondary/50 transition-colors text-left">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-mono font-semibold">{stock.symbol}</span>

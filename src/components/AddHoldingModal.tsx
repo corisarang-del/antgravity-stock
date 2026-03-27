@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { X, Plus, Search } from "lucide-react";
 import { STOCKS } from "@/data/stockData";
@@ -8,6 +8,8 @@ interface Props {
   onAdd: (holding: { symbol: string; quantity: number; avgPrice: number }) => void;
 }
 
+const STOCK_BY_SYMBOL = new Map(STOCKS.map((stock) => [stock.symbol, stock]));
+
 export function AddHoldingModal({ onClose, onAdd }: Props) {
   const [symbol, setSymbol] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -15,16 +17,20 @@ export function AddHoldingModal({ onClose, onAdd }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const filteredStocks = STOCKS.filter(
-    (s) =>
-      s.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.name.toLowerCase().includes(searchQuery.toLowerCase())
-  ).slice(0, 6);
+  const filteredStocks = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
 
-  const selectedStock = STOCKS.find((s) => s.symbol === symbol);
+    return STOCKS.filter(
+      (stock) =>
+        stock.symbol.toLowerCase().includes(normalizedQuery) ||
+        stock.name.toLowerCase().includes(normalizedQuery)
+    ).slice(0, 6);
+  }, [searchQuery]);
+
+  const selectedStock = useMemo(() => STOCK_BY_SYMBOL.get(symbol), [symbol]);
 
   const handleSelect = (sym: string) => {
-    const stock = STOCKS.find((s) => s.symbol === sym);
+    const stock = STOCK_BY_SYMBOL.get(sym);
     setSymbol(sym);
     setSearchQuery(sym);
     setShowDropdown(false);

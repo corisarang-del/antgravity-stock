@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import type { Holding } from "@/pages/Portfolio";
 
@@ -18,7 +19,16 @@ const PIE_COLORS = [
 
 const RADIAN = Math.PI / 180;
 
-function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) {
+interface CustomLabelProps {
+  cx?: number;
+  cy?: number;
+  midAngle?: number;
+  innerRadius?: number;
+  outerRadius?: number;
+  percent?: number;
+}
+
+function CustomLabel({ cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadius = 0, percent = 0 }: CustomLabelProps) {
   if (percent < 0.06) return null;
   const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -31,6 +41,21 @@ function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: an
 }
 
 export function PortfolioChart({ holdings }: Props) {
+  const data = useMemo(
+    () =>
+      holdings.map((holding) => ({
+        name: holding.symbol,
+        fullName: holding.name,
+        value: parseFloat((holding.currentPrice * holding.quantity).toFixed(2)),
+      })),
+    [holdings]
+  );
+
+  const total = useMemo(
+    () => data.reduce((sum, item) => sum + item.value, 0),
+    [data]
+  );
+
   if (holdings.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3 text-muted-foreground">
@@ -39,14 +64,6 @@ export function PortfolioChart({ holdings }: Props) {
       </div>
     );
   }
-
-  const data = holdings.map((h) => ({
-    name: h.symbol,
-    fullName: h.name,
-    value: parseFloat((h.currentPrice * h.quantity).toFixed(2)),
-  }));
-
-  const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
     <div className="flex flex-col gap-4">

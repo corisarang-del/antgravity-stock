@@ -2,10 +2,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Crown, Zap, Star, Bell, Brain, Wallet, Check, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { TOSS_CLIENT_KEY } from "@/config/toss";
 import { AuthModal } from "@/components/AuthModal";
+import { getSafeRedirectUrl } from "@/lib/authRedirect";
 
 const FREE_FEATURES = [
   "관심종목 최대 5개",
@@ -20,6 +21,13 @@ const PRO_FEATURES = [
   { icon: Wallet, label: "포트폴리오 클라우드 저장",   desc: "기기 간 동기화" },
   { icon: Brain,  label: "AI 예측 분석 전체 공개",     desc: "종목별 점수 및 신호 분석" },
 ];
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
+}
 
 const Upgrade = () => {
   const { user, session } = useAuth();
@@ -38,13 +46,19 @@ const Upgrade = () => {
       const payment = tossPayments.payment({ customerKey: user.id });
       await payment.requestBillingAuth({
         method: "CARD",
-        successUrl: `${window.location.origin}/payment/success`,
-        failUrl: `${window.location.origin}/payment/fail`,
+        successUrl: getSafeRedirectUrl("/payment/success"),
+        failUrl: getSafeRedirectUrl("/payment/fail"),
         customerEmail: user.email ?? "",
         customerName: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "고객",
       });
-    } catch (e: any) {
-      if (e?.code !== "USER_CANCEL") setError(e?.message ?? "결제 창을 열지 못했습니다.");
+    } catch (e: unknown) {
+      const userCancel =
+        typeof e === "object" &&
+        e !== null &&
+        "code" in e &&
+        e.code === "USER_CANCEL";
+
+      if (!userCancel) setError(getErrorMessage(e, "결제 창을 열지 못했습니다."));
       setLoading(false);
     }
   };
@@ -204,7 +218,7 @@ const Upgrade = () => {
       </div>
 
       <AnimatePresence>
-        {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+        {showAuth ? <AuthModal onClose={() => setShowAuth(false)} /> : null}
       </AnimatePresence>
     </AppShell>
   );

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Brain, BarChart2, Bell, Trash2, Plus, ToggleLeft, ToggleRight, AlertCircle, Crown } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useSubscription } from "@/hooks/useSubscription";
 import { STOCKS } from "@/data/stockData";
@@ -12,9 +12,11 @@ import { AddAlertModal } from "@/components/AddAlertModal";
 import { PricingModal } from "@/components/PricingModal";
 import { FREE_LIMITS } from "@/config/toss";
 
+const STOCK_BY_SYMBOL = new Map(STOCKS.map((stock) => [stock.symbol, stock]));
+
 const Alerts = () => {
   const { user, loading: authLoading } = useAuth();
-  const { alerts, loading, toggleAlert, deleteAlert } = useAlerts();
+  const { alerts, triggered, loading, toggleAlert, deleteAlert } = useAlerts();
   const { isPro } = useSubscription();
   const [showAuth, setShowAuth] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -86,6 +88,23 @@ const Alerts = () => {
           <div className="flex items-center justify-center py-24 text-muted-foreground text-sm">불러오는 중...</div>
         ) : (
           <>
+            {triggered.length > 0 ? (
+              <div className="space-y-2">
+                {triggered.map((item, index) => (
+                  <div
+                    key={`${item.title}-${index}`}
+                    className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-gain/10 border border-gain/20 text-xs"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-gain" />
+                    <div>
+                      <div className="font-semibold text-gain">{item.title}</div>
+                      <div className="text-muted-foreground mt-0.5">{item.message}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
             {/* 제한 안내 */}
             {!isPro && (
               <button
@@ -111,7 +130,7 @@ const Alerts = () => {
             ) : (
               <div className="space-y-3">
                 {alerts.map((alert, idx) => {
-                  const stock = STOCKS.find((s) => s.symbol === alert.symbol);
+                  const stock = STOCK_BY_SYMBOL.get(alert.symbol);
                   const currentPrice = stock?.price ?? 0;
                   const diff = currentPrice > 0 ? ((alert.targetPrice - currentPrice) / currentPrice) * 100 : 0;
                   return (
@@ -163,9 +182,9 @@ const Alerts = () => {
       </main>
 
       <AnimatePresence>
-        {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
-        {showAdd && <AddAlertModal onClose={() => setShowAdd(false)} />}
-        {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
+        {showAuth ? <AuthModal onClose={() => setShowAuth(false)} /> : null}
+        {showAdd ? <AddAlertModal onClose={() => setShowAdd(false)} /> : null}
+        {showPricing ? <PricingModal onClose={() => setShowPricing(false)} /> : null}
       </AnimatePresence>
     </div>
   );

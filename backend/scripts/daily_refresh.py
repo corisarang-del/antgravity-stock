@@ -125,7 +125,57 @@ def refresh_symbol(symbol: str, name: str) -> tuple[bool, bool]:
     return fund_ok, hist_ok
 
 
-def main(symbols: list[str] | None = None) -> None:
+def refresh_symbols_batch(
+    symbols: list[tuple[str, str]],
+    max_workers: int = 20,
+) -> tuple[int, int]:
+    """병렬로 여러 심볼 수집.
+
+    Args:
+        symbols: (symbol, name) 튜플 리스트
+        max_workers: 동시 실행 스레드 수
+
+    Returns:
+        (success_count, fail_count)
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    success = fail = 0
+    total = len(symbols)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {
+            pool.submit(refresh_symbol, sym, name): (sym, name)
+            for sym, name in symbols
+        }
+        for i, fut in enumerate(as_completed(futures), 1):
+            sym, name = futures[fut]
+            try:
+                fund_ok, hist_ok = fut.result()
+                if fund_ok and hist_ok:
+                    success += 1
+                    print(f"  [OK] {sym} ({name})")
+                else:
+                    fail += 1
+                    print(f"  [PARTIAL] {sym} fund={fund_ok} hist={hist_ok}")
+            except Exception as e:
+                fail += 1
+                print(f"  [FAIL] {sym}: {e}")
+
+            # 100개마다 진행 로깅
+            if i % 100 == 0:
+                print(f"[batch] 진행: {i}/{total} (성공: {success}, 실패: {fail})")
+
+    return success, fail
+
+
+def main(symbols: list[str] | None = None, parallel: bool = True) -> None:
+    """재무 데이터 수집.
+
+    Args:
+        symbols: 특정 심볼만 수집 (None이면 전체)
+        parallel: 병렬 처리 여부 (기본 True)
+    """
     # 전체 종목 로드 (ticker_universe에서)
     all_tickers = _get_all_symbols() or _CORE_TICKERS
 
@@ -138,23 +188,29 @@ def main(symbols: list[str] | None = None) -> None:
         print("[daily_refresh] 대상 심볼 없음")
         return
 
-    print(f"[daily_refresh] 시작 - {len(targets)}개 심볼")
+    print(f"[daily_refresh] 시작 - {len(targets)}개 심볼 (parallel={parallel})")
     start = time.time()
 
-    success = fail = 0
-    for symbol, name in targets.items():
-        print(f"  → {symbol} ({name})")
-        fund_ok, hist_ok = refresh_symbol(symbol, name)
+    if parallel:
+        # 병렬 처리 (20 스레드)
+        symbol_list = list(targets.items())
+        success, fail = refresh_symbols_batch(symbol_list, max_workers=20)
+    else:
+        # 순차 처리 (레거시)
+        success = fail = 0
+        for symbol, name in targets.items():
+            print(f"  → {symbol} ({name})")
+            fund_ok, hist_ok = refresh_symbol(symbol, name)
 
-        if fund_ok and hist_ok:
-            print(f"  [OK] {symbol}")
-            success += 1
-        else:
-            print(f"  [PARTIAL] {symbol} fund={fund_ok} hist={hist_ok}")
-            fail += 1
+            if fund_ok and hist_ok:
+                print(f"  [OK] {symbol}")
+                success += 1
+            else:
+                print(f"  [PARTIAL] {symbol} fund={fund_ok} hist={hist_ok}")
+                fail += 1
 
-        # rate limit 방지: 심볼 간 1초 대기
-        time.sleep(1)
+            # rate limit 방지: 심볼 간 1초 대기
+            time.sleep(1)
 
     elapsed = time.time() - start
     print(f"\n[daily_refresh] 완료 - 성공 {success}, 실패 {fail}, 소요 {elapsed:.1f}s")

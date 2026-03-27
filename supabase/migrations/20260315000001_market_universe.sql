@@ -42,16 +42,26 @@ ALTER TABLE ticker_universe ENABLE ROW LEVEL SECURITY;
 ALTER TABLE market_snapshot ENABLE ROW LEVEL SECURITY;
 
 -- service_role에만 전체 권한 (anon/authenticated role 접근 불가)
-CREATE POLICY "service_role_only_ticker_universe"
-  ON ticker_universe
-  FOR ALL
-  TO service_role
-  USING (true)
-  WITH CHECK (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'service_role_only_ticker_universe') THEN
+    CREATE POLICY "service_role_only_ticker_universe"
+      ON ticker_universe
+      FOR ALL
+      TO service_role
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;
 
-CREATE POLICY "service_role_only_market_snapshot"
-  ON market_snapshot
-  FOR ALL
-  TO service_role
-  USING (true)
-  WITH CHECK (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'service_role_only_market_snapshot') THEN
+    CREATE POLICY "service_role_only_market_snapshot"
+      ON market_snapshot
+      FOR ALL
+      TO service_role
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;

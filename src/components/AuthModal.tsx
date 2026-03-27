@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Brain, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getSafeRedirectUrl } from "@/lib/authRedirect";
 
 interface Props {
   onClose: () => void;
@@ -20,7 +21,7 @@ export function AuthModal({ onClose, defaultTab = "login" }: Props) {
     setError(null);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: getSafeRedirectUrl("/") },
     });
     if (error) setError("Google 로그인에 실패했습니다. 다시 시도해주세요.");
     setLoading(false);
@@ -30,8 +31,8 @@ export function AuthModal({ onClose, defaultTab = "login" }: Props) {
     setLoading(true);
     setError(null);
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: "kakao" as any,
-      options: { redirectTo: window.location.origin },
+      provider: "kakao",
+      options: { redirectTo: getSafeRedirectUrl("/") },
     });
     if (error) setError("카카오 로그인 실패: 카카오 OAuth 설정을 확인해주세요.");
     setLoading(false);

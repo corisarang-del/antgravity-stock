@@ -8,25 +8,30 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  type CartesianGridProps,
 } from "recharts";
 import { StockFinancials } from "@/data/stockData";
-import { DollarSign, TrendingUp, BarChart2, Percent } from "lucide-react";
+import { DollarSign, TrendingUp, BarChart2, Percent, type LucideIcon } from "lucide-react";
 
 interface FinancialSummaryProps {
   financials: StockFinancials;
   symbol: string;
 }
 
-// Korean stock codes (6-digit numbers)
-const isKoreanStock = (symbol: string) => /^\d{6}$/.test(symbol);
+const KR_SYMBOL_RE = /^\d{6}$/;
 
-const MetricCard = ({ icon: Icon, label, value, sub, color = "primary" }: {
-  icon: any;
+// Korean stock codes (6-digit numbers)
+const isKoreanStock = (symbol: string) => KR_SYMBOL_RE.test(symbol);
+
+type MetricCardProps = {
+  icon: LucideIcon;
   label: string;
   value: string;
   sub?: string;
   color?: string;
-}) => (
+};
+
+const MetricCard = ({ icon: Icon, label, value, sub, color = "primary" }: MetricCardProps) => (
   <motion.div
     initial={{ opacity: 0, y: 8 }}
     animate={{ opacity: 1, y: 0 }}
@@ -43,7 +48,18 @@ const MetricCard = ({ icon: Icon, label, value, sub, color = "primary" }: {
   </motion.div>
 );
 
-const ChartTooltip = ({ active, payload, label, isKrw }: any) => {
+interface ChartTooltipDatum {
+  value?: number;
+}
+
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: ChartTooltipDatum[];
+  label?: string;
+  isKrw: boolean;
+}
+
+const ChartTooltip = ({ active, payload, label, isKrw }: ChartTooltipProps) => {
   if (active && payload?.length) {
     const val = payload[0]?.value;
     const formatted = isKrw
@@ -177,7 +193,10 @@ export function FinancialSummary({ financials, symbol }: FinancialSummaryProps) 
 }
 
 function CartesianGridCustom() {
-  return (
-    <CartesianGrid strokeDasharray="3 3" stroke="hsl(215, 20%, 88%)" vertical={false} />
-  );
+  const props: CartesianGridProps = {
+    strokeDasharray: "3 3",
+    stroke: "hsl(215, 20%, 88%)",
+    vertical: false,
+  };
+  return <CartesianGrid {...props} />;
 }

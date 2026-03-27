@@ -228,7 +228,28 @@ def _screener_cache_key(
     market_cap_min: float | None,
     change_pct_min: float | None,
 ) -> str:
-    return f"{sorted(strategies)}/{combination}/{market}/{per_max}/{pbr_max}/{market_cap_min}/{change_pct_min}"
+    """캐시 키 생성 (None 파라미터 제외로 히트율 향상).
+
+    예: per_max=None, pbr_max=2.0인 경우
+    - 이전: "strat/AND/all/None/2.0/None/None" (다른 요청과 다른 키)
+    - 개선: "strat/AND/all//2.0//" (None 제외)
+    """
+    parts = [
+        ",".join(sorted(strategies)),
+        combination,
+        market,
+    ]
+    # None이 아닌 파라미터만 추가
+    if per_max is not None:
+        parts.append(f"per={per_max}")
+    if pbr_max is not None:
+        parts.append(f"pbr={pbr_max}")
+    if market_cap_min is not None:
+        parts.append(f"mktcap={market_cap_min}")
+    if change_pct_min is not None:
+        parts.append(f"chg={change_pct_min}")
+
+    return "/".join(parts)
 
 
 def run_screener(

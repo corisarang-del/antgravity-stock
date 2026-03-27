@@ -29,6 +29,8 @@ const getSignalLabel = (signal: string) => {
   return map[signal] || signal;
 };
 
+const KR_SYMBOL_RE = /^\d{6}$/;
+const STOCK_BY_SYMBOL = new Map(STOCKS.map((stock) => [stock.symbol, stock]));
 const SUGGESTIONS = ["NVDA", "005930", "000660", "AAPL", "298040", "PLTR"];
 
 export function StockDiagnose({ onSelectStock }: { onSelectStock?: (symbol: string) => void }) {
@@ -147,7 +149,7 @@ export function StockDiagnose({ onSelectStock }: { onSelectStock?: (symbol: stri
       {!diagnosed && !animating && (
         <div className="flex flex-wrap gap-1.5 mt-2.5">
           {SUGGESTIONS.map((sym) => {
-            const s = STOCKS.find((x) => x.symbol === sym);
+            const s = STOCK_BY_SYMBOL.get(sym);
             if (!s) return null;
             return (
               <button
@@ -198,7 +200,7 @@ export function StockDiagnose({ onSelectStock }: { onSelectStock?: (symbol: stri
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="text-xs text-muted-foreground font-mono">
-                      {diagnosed.symbol.match(/^\d{6}$/)
+                      {KR_SYMBOL_RE.test(diagnosed.symbol)
                         ? `₩${diagnosed.price.toLocaleString()}`
                         : `$${diagnosed.price.toLocaleString()}`}
                     </span>

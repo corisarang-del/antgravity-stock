@@ -1,16 +1,18 @@
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, DollarSign, BarChart2, Percent } from "lucide-react";
+import type { DashboardPortfolioSummary } from "@/lib/apiClient";
 import type { Holding } from "@/pages/Portfolio";
 
 interface Props {
   holdings: Holding[];
+  summary?: DashboardPortfolioSummary | null;
 }
 
-export function PortfolioSummary({ holdings }: Props) {
-  const totalCost = holdings.reduce((sum, h) => sum + h.avgPrice * h.quantity, 0);
-  const totalValue = holdings.reduce((sum, h) => sum + h.currentPrice * h.quantity, 0);
-  const totalPnl = totalValue - totalCost;
-  const totalReturnPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+export function PortfolioSummary({ holdings, summary }: Props) {
+  const totalCost = summary?.totalCostBasis ?? holdings.reduce((sum, h) => sum + h.avgPrice * h.quantity, 0);
+  const totalValue = summary?.totalMarketValue ?? holdings.reduce((sum, h) => sum + h.currentPrice * h.quantity, 0);
+  const totalPnl = summary?.totalProfitLoss ?? (totalValue - totalCost);
+  const totalReturnPct = summary?.totalReturnRate ?? (totalCost > 0 ? (totalPnl / totalCost) * 100 : 0);
   const gainCount = holdings.filter((h) => h.currentPrice >= h.avgPrice).length;
   const lossCount = holdings.length - gainCount;
 

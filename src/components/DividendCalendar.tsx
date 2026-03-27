@@ -59,7 +59,9 @@ export function DividendCalendar() {
                         <span className="text-xs font-semibold">{ev.symbol}</span>
                         <span className="text-xs text-muted-foreground ml-2">{ev.name}</span>
                       </div>
-                      <span className="text-xs font-mono text-gain">${ev.amount.toFixed(2)}</span>
+                      <span className="text-xs font-mono text-gain">
+                        {ev.market === "KR" ? `₩${ev.amount.toLocaleString()}` : `$${ev.amount.toFixed(2)}`}
+                      </span>
                     </div>
                   ))}
                 </div>

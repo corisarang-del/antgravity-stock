@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/useAuth";
 import { STOCKS } from "@/data/stockData";
+import {
+  createDashboardWatchlistItem,
+  deleteDashboardWatchlistItem,
+  fetchDashboardWatchlist,
+} from "@/lib/apiClient";
 
 export interface WatchItem {
   id: string;
@@ -11,6 +16,8 @@ export interface WatchItem {
   addedAt: string;
 }
 
+const STOCK_BY_SYMBOL = new Map(STOCKS.map((stock) => [stock.symbol, stock]));
+
 export function useWatchlist() {
   const { user } = useAuth();
   const [watchlist, setWatchlist] = useState<WatchItem[]>([]);
@@ -19,6 +26,15 @@ export function useWatchlist() {
   const fetch = useCallback(async () => {
     if (!user) { setWatchlist([]); return; }
     setLoading(true);
+    try {
+      const items = await fetchDashboardWatchlist();
+      setWatchlist(items);
+      setLoading(false);
+      return;
+    } catch {
+      // dashboard API 전환 중이므로, 서버 미가동/권한 문제 시 기존 Supabase 직접 읽기로 폴백
+    }
+
     const { data, error } = await supabase
       .from("watchlist")
       .select("*")
@@ -35,8 +51,20 @@ export function useWatchlist() {
 
   const addToWatchlist = async (symbol: string) => {
     if (!user) return false;
-    const stock = STOCKS.find((s) => s.symbol === symbol);
+    const stock = STOCK_BY_SYMBOL.get(symbol);
     if (!stock) return false;
+    try {
+      const item = await createDashboardWatchlistItem({
+        symbol,
+        name: stock.name,
+        sector: stock.sector,
+      });
+      setWatchlist((prev) => [item, ...prev]);
+      return true;
+    } catch {
+      // write path 전환 중이므로 기존 Supabase 직접 쓰기를 폴백으로 유지
+    }
+
     const { data, error } = await supabase
       .from("watchlist")
       .insert({ user_id: user.id, symbol, name: stock.name, sector: stock.sector })
@@ -51,6 +79,14 @@ export function useWatchlist() {
 
   const removeFromWatchlist = async (id: string) => {
     if (!user) return;
+    try {
+      await deleteDashboardWatchlistItem(id);
+      setWatchlist((prev) => prev.filter((w) => w.id !== id));
+      return;
+    } catch {
+      // write path 전환 중이므로 기존 Supabase 직접 쓰기를 폴백으로 유지
+    }
+
     await supabase.from("watchlist").delete().eq("id", id).eq("user_id", user.id);
     setWatchlist((prev) => prev.filter((w) => w.id !== id));
   };

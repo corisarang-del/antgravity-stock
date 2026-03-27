@@ -30,3 +30,9 @@ dist-ssr
 
 # Git worktrees
 .worktrees/
+
+# Local-only docs and security reports
+docs/
+research.md
+research-refer.md
+SECURITY_AUDIT.md

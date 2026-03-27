@@ -267,7 +267,7 @@ export default function ProDashboard() {
             </div>
           )}
 
-          {activeTab === "screener" && <AiScreener />}
+          {activeTab === "screener" ? <AiScreener /> : null}
 
           {activeTab === "sector" && (
             <Suspense fallback={<div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>}>
@@ -302,7 +302,7 @@ export default function ProDashboard() {
             </div>
           )}
 
-          {activeTab === "dividends" && <DividendCalendar />}
+          {activeTab === "dividends" ? <DividendCalendar /> : null}
         </div>
       </ProGate>
     </AppShell>

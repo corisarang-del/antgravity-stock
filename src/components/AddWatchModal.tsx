@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { X, Search } from "lucide-react";
 import { STOCKS } from "@/data/stockData";
@@ -11,9 +11,15 @@ export function AddWatchModal({ onClose }: Props) {
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState<string | null>(null);
 
-  const filtered = STOCKS.filter(
-    (s) => s.symbol.toLowerCase().includes(query.toLowerCase()) || s.name.toLowerCase().includes(query.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return STOCKS.filter(
+      (stock) =>
+        stock.symbol.toLowerCase().includes(normalizedQuery) ||
+        stock.name.toLowerCase().includes(normalizedQuery)
+    );
+  }, [query]);
 
   const handleAdd = async (symbol: string) => {
     setAdding(symbol);

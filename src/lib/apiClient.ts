@@ -12,19 +12,22 @@ function toBackendSymbol(symbol: string): string {
 // ─── 공통 요청 헬퍼 ──────────────────────────────────────────────────────────
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const { data: sessionData } = await supabase.auth.getSession();
-  const userId = sessionData.session?.user?.id;
+  const accessToken = sessionData.session?.access_token;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options?.headers as Record<string, string>),
   };
-  if (userId) {
-    headers["X-User-ID"] = userId;
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
   }
 
   const res = await fetch(url, { ...options, headers });
   if (!res.ok) {
     throw new Error(`API error ${res.status}: ${res.statusText}`);
+  }
+  if (res.status === 204) {
+    return undefined as T;
   }
   return res.json() as Promise<T>;
 }
@@ -90,6 +93,69 @@ interface IpoCalendarResponse {
   items: BackendIpoItem[];
 }
 
+export interface DashboardWatchItem {
+  id: string;
+  symbol: string;
+  name: string;
+  sector: string;
+  addedAt: string;
+}
+
+interface DashboardWatchlistResponse {
+  items: DashboardWatchItem[];
+}
+
+export interface DashboardAlertItem {
+  id: string;
+  symbol: string;
+  name: string;
+  alertType: "above" | "below";
+  targetPrice: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+interface DashboardAlertsResponse {
+  items: DashboardAlertItem[];
+  triggered: DashboardTriggeredAlertItem[];
+}
+
+export interface DashboardPortfolioHoldingItem {
+  id: string;
+  symbol: string;
+  name: string;
+  quantity: number;
+  avgPrice: number;
+  currentPrice: number;
+  sector: string;
+}
+
+interface DashboardPortfolioHoldingsResponse {
+  items: DashboardPortfolioHoldingItem[];
+}
+
+export interface DashboardTriggeredAlertItem {
+  title: string;
+  message: string;
+  status: "triggered";
+}
+
+export interface DashboardPortfolioSummary {
+  totalCostBasis: number;
+  totalMarketValue: number;
+  totalProfitLoss: number;
+  totalReturnRate: number;
+  calculatedAt: string;
+}
+
+interface DashboardPortfolioSummaryResponse {
+  total_cost_basis: number;
+  total_market_value: number;
+  total_profit_loss: number;
+  total_return_rate: number;
+  calculated_at: string;
+}
+
 // ─── API 함수 ─────────────────────────────────────────────────────────────────
 
 export async function fetchStockBundle(
@@ -125,6 +191,123 @@ export async function fetchPrediction(symbol: string): Promise<Prediction> {
   return apiFetch<Prediction>("/api/predict/", {
     method: "POST",
     body: JSON.stringify({ symbol: backendSymbol }),
+  });
+}
+
+export async function fetchDashboardWatchlist(): Promise<DashboardWatchItem[]> {
+  const res = await apiFetch<DashboardWatchlistResponse>("/api/dashboard/watchlist");
+  return res.items;
+}
+
+export async function fetchDashboardAlerts(): Promise<DashboardAlertsResponse> {
+  return apiFetch<DashboardAlertsResponse>("/api/dashboard/alerts");
+}
+
+export async function fetchDashboardPortfolioSummary(): Promise<DashboardPortfolioSummary> {
+  const res = await apiFetch<DashboardPortfolioSummaryResponse>("/api/dashboard/portfolio/summary");
+  return {
+    totalCostBasis: res.total_cost_basis,
+    totalMarketValue: res.total_market_value,
+    totalProfitLoss: res.total_profit_loss,
+    totalReturnRate: res.total_return_rate,
+    calculatedAt: res.calculated_at,
+  };
+}
+
+export async function fetchDashboardAlertItems(): Promise<DashboardAlertItem[]> {
+  const res = await apiFetch<DashboardAlertsResponse>("/api/dashboard/alerts");
+  return res.items;
+}
+
+export async function fetchDashboardPortfolioHoldings(): Promise<DashboardPortfolioHoldingItem[]> {
+  const res = await apiFetch<DashboardPortfolioHoldingsResponse>("/api/dashboard/portfolio/holdings");
+  return res.items;
+}
+
+export async function createDashboardWatchlistItem(input: {
+  symbol: string;
+  name: string;
+  sector: string;
+}): Promise<DashboardWatchItem> {
+  return apiFetch<DashboardWatchItem>("/api/dashboard/watchlist", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteDashboardWatchlistItem(id: string): Promise<void> {
+  return apiFetch<void>(`/api/dashboard/watchlist/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function createDashboardAlert(input: {
+  symbol: string;
+  name: string;
+  alertType: "above" | "below";
+  targetPrice: number;
+}): Promise<DashboardAlertItem> {
+  return apiFetch<DashboardAlertItem>("/api/dashboard/alerts", {
+    method: "POST",
+    body: JSON.stringify({
+      symbol: input.symbol,
+      name: input.name,
+      condition_type: input.alertType,
+      target_price: input.targetPrice,
+      delivery_channels: ["toast"],
+    }),
+  });
+}
+
+export async function updateDashboardAlert(input: {
+  id: string;
+  isActive?: boolean;
+  targetPrice?: number;
+}): Promise<DashboardAlertItem> {
+  const body: Record<string, unknown> = {};
+  if (input.isActive !== undefined) {
+    body.status = input.isActive ? "active" : "paused";
+  }
+  if (input.targetPrice !== undefined) {
+    body.target_price = input.targetPrice;
+  }
+
+  return apiFetch<DashboardAlertItem>(`/api/dashboard/alerts/${encodeURIComponent(input.id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteDashboardAlert(id: string): Promise<void> {
+  return apiFetch<void>(`/api/dashboard/alerts/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function createDashboardPortfolioHolding(input: {
+  symbol: string;
+  name: string;
+  sector: string;
+  quantity: number;
+  avgPrice: number;
+  currentPrice: number;
+}): Promise<DashboardPortfolioHoldingItem> {
+  return apiFetch<DashboardPortfolioHoldingItem>("/api/dashboard/portfolio/holdings", {
+    method: "POST",
+    body: JSON.stringify({
+      symbol: input.symbol,
+      name: input.name,
+      sector: input.sector,
+      quantity: input.quantity,
+      buy_price: input.avgPrice,
+      current_price: input.currentPrice,
+    }),
+  });
+}
+
+export async function deleteDashboardPortfolioHolding(id: string): Promise<void> {
+  return apiFetch<void>(`/api/dashboard/portfolio/holdings/${encodeURIComponent(id)}`, {
+    method: "DELETE",
   });
 }
 

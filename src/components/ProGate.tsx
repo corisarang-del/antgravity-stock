@@ -36,7 +36,7 @@ export function ProGate({ isPro, message = "Pro 전용 기능입니다", mode = 
         </div>
 
         <AnimatePresence>
-          {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
+          {showPricing ? <PricingModal onClose={() => setShowPricing(false)} /> : null}
         </AnimatePresence>
       </>
     );

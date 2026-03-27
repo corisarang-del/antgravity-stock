@@ -24,75 +24,17 @@ interface CandlestickChartProps {
   symbol: string;
 }
 
-// Custom candlestick bar shape
-const CandlestickBar = (props: any) => {
-  const { x, y, width, height, open, close, high, low, chartHeight, yMin, yRange } = props;
-  if (!open || !close || !high || !low) return null;
+interface CandlestickTooltipPayloadItem {
+  payload?: CandlestickData;
+}
 
-  const isGain = close >= open;
-  const color = isGain ? "hsl(158, 64%, 52%)" : "hsl(0, 84%, 60%)";
+interface CandlestickTooltipProps {
+  active?: boolean;
+  payload?: CandlestickTooltipPayloadItem[];
+  label?: string;
+}
 
-  // Map price to pixel (this is approximate - recharts handles actual mapping)
-  const barTop = Math.min(y, y + height);
-  const barBottom = Math.max(y, y + height);
-  const barHeight = Math.abs(height) || 1;
-  const centerX = x + width / 2;
-
-  return (
-    <g>
-      {/* Wick */}
-      <line x1={centerX} y1={barTop - 2} x2={centerX} y2={barTop} stroke={color} strokeWidth={1.5} />
-      <line x1={centerX} y1={barBottom} x2={centerX} y2={barBottom + 2} stroke={color} strokeWidth={1.5} />
-      {/* Body */}
-      <rect
-        x={x + 1}
-        y={barTop}
-        width={width - 2}
-        height={barHeight}
-        fill={isGain ? color : color}
-        stroke={color}
-        strokeWidth={1}
-        fillOpacity={isGain ? 0.85 : 0.85}
-      />
-    </g>
-  );
-};
-
-// Custom candle using a custom bar shape
-const CustomCandlestick = (props: any) => {
-  const { x, y, width, payload } = props;
-  if (!payload) return null;
-
-  const { open, price: close, high, low } = payload;
-  const isGain = close >= open;
-  const color = isGain ? "hsl(158, 64%, 52%)" : "hsl(0, 84%, 60%)";
-
-  // y is the top of the range [low, high] mapped by yAxis
-  // We need to use the yAxis scale - recharts passes yAxis as context but we'll use the bar's y/height for body
-  // In a ComposedChart with Bar using [open, close] as the value, y and height represent that range
-  const bodyTop = y;
-  const bodyHeight = Math.abs(props.height) || 1;
-  const centerX = x + width / 2;
-
-  return (
-    <g>
-      <line x1={centerX} y1={props.wickTop ?? bodyTop - 5} x2={centerX} y2={bodyTop} stroke={color} strokeWidth={1} opacity={0.8} />
-      <line x1={centerX} y1={bodyTop + bodyHeight} x2={centerX} y2={props.wickBottom ?? bodyTop + bodyHeight + 5} stroke={color} strokeWidth={1} opacity={0.8} />
-      <rect
-        x={x + 1}
-        y={bodyTop}
-        width={Math.max(width - 2, 2)}
-        height={bodyHeight}
-        fill={color}
-        stroke={color}
-        strokeWidth={0.5}
-        fillOpacity={0.9}
-      />
-    </g>
-  );
-};
-
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: CandlestickTooltipProps) => {
   if (active && payload && payload.length) {
     const d = payload[0]?.payload;
     if (!d) return null;
@@ -177,12 +119,17 @@ export function CandlestickChart({ data, symbol }: CandlestickChartProps) {
           <Bar
             dataKey="bodyRange"
             barSize={data.length > 50 ? 4 : data.length > 30 ? 6 : 10}
-            shape={(props: any) => {
+            shape={(props: {
+              x: number;
+              y: number;
+              width: number;
+              height: number;
+              payload: CandlestickData & { isGain: boolean };
+            }) => {
               const d = props.payload;
               const isGain = d.isGain;
               const color = isGain ? "hsl(158, 64%, 52%)" : "hsl(0, 84%, 60%)";
               const { x, y, width, height } = props;
-              const centerX = x + width / 2;
               const bodyTop = y;
               const bodyH = Math.abs(height) || 1;
               

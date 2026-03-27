@@ -18,19 +18,29 @@ ALTER TABLE financials_cache ENABLE ROW LEVEL SECURITY;
 ALTER TABLE history_cache ENABLE ROW LEVEL SECURITY;
 
 -- service_role에만 전체 권한 (anon/authenticated role 접근 불가)
-CREATE POLICY "service_role_only_financials"
-  ON financials_cache
-  FOR ALL
-  TO service_role
-  USING (true)
-  WITH CHECK (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'service_role_only_financials') THEN
+    CREATE POLICY "service_role_only_financials"
+      ON financials_cache
+      FOR ALL
+      TO service_role
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;
 
-CREATE POLICY "service_role_only_history"
-  ON history_cache
-  FOR ALL
-  TO service_role
-  USING (true)
-  WITH CHECK (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'service_role_only_history') THEN
+    CREATE POLICY "service_role_only_history"
+      ON history_cache
+      FOR ALL
+      TO service_role
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;
 
 -- fetched_at 기준 최신 데이터 조회 성능 인덱스
 CREATE INDEX IF NOT EXISTS idx_financials_cache_fetched_at ON financials_cache (fetched_at);
