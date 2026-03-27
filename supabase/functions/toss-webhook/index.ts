@@ -8,6 +8,7 @@ import {
 } from "../_shared/security.ts";
 
 const TOSS_WEBHOOK_SECRET = Deno.env.get("TOSS_WEBHOOK_SECRET") ?? "";
+const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY") ?? "";
 
 serve(async (req) => {
   const cors = buildCorsHeaders(req);
@@ -25,8 +26,15 @@ serve(async (req) => {
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      SERVICE_ROLE_KEY
     );
+
+    if (!SERVICE_ROLE_KEY) {
+      return new Response(JSON.stringify({ error: "Service role key missing" }), {
+        status: 500,
+        headers: { ...cors.headers, "Content-Type": "application/json" },
+      });
+    }
 
     // 정기결제 성공
     if (eventType === "PAYMENT_STATUS_CHANGED" && data?.status === "DONE") {

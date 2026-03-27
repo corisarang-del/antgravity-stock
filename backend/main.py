@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor
 
@@ -11,6 +12,14 @@ from routers import dashboard, dividends, market_full, predict, screener, sector
 from services.market_snapshot_service import MarketSnapshotService
 from services.cache_warmer import start_scheduler, stop_scheduler, warm_all_from_supabase, warm_sector_cache
 
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    )
+
+logger = logging.getLogger(__name__)
+
 
 def _warmup_caches() -> None:
     """서버 시작 시 Supabase와 무관한 캐시만 워밍.
@@ -19,20 +28,25 @@ def _warmup_caches() -> None:
     """
     # prediction 캐시
     try:
+        logger.info("[startup] prediction warmup start")
         from services.prediction_service import get_prediction_payload
         get_prediction_payload("SPY", horizon=1)
+        logger.info("[startup] prediction warmup done")
     except Exception:
-        pass
+        logger.exception("[startup] prediction warmup failed")
 
     # market snapshot 미리보기
     try:
+        logger.info("[startup] market snapshot preview warmup start")
         svc = MarketSnapshotService()
         svc.preview_items()
+        logger.info("[startup] market snapshot preview warmup done")
     except Exception:
-        pass
+        logger.exception("[startup] market snapshot preview warmup failed")
 
     # 배당 캘린더 프리페치 — 현재 월 캐시 미리 계산 (첫 탭 전환 시 즉시 반환)
     try:
+        logger.info("[startup] dividends warmup start")
         from datetime import date
         from routers.dividends import _compute_dividend_calendar, _DIV_CACHE
         today = date.today()
@@ -40,47 +54,69 @@ def _warmup_caches() -> None:
         if _DIV_CACHE.get(cache_key) is None:
             result = _compute_dividend_calendar(today.year, today.month)
             _DIV_CACHE.set(cache_key, result)
+        logger.info("[startup] dividends warmup done")
     except Exception:
-        pass
+        logger.exception("[startup] dividends warmup failed")
 
 
-# 백그라운드 태스크 참조 저장 (GC 방지)
-_background_tasks: list[asyncio.Task] = []
+_background_jobs: list[object] = []
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 서버 먼저 시작, 워밍은 백그라운드에서 (논블로킹)
+    logger.info(
+        "[startup] lifespan begin env=%s warmup_enabled=%s cors_origins=%d",
+        settings.APP_ENV,
+        settings.startup_warmup_enabled,
+        len(settings.cors_origins_list),
+    )
+
     loop = asyncio.get_running_loop()
 
-    # 워밍을 executor에서 실행 (완전히 분리)
-    loop.run_in_executor(None, _warmup_sync_caches)
+    if settings.startup_warmup_enabled:
+        logger.info("[startup] scheduling background warmup")
+        future = loop.run_in_executor(None, _warmup_sync_caches)
+        _background_jobs.append(future)
+    else:
+        logger.info("[startup] background warmup skipped by config")
+
+    logger.info("[startup] application ready")
 
     yield
 
-    # 서버 ready 후 스케줄러 시작 (매일 KST 07:00 재워밍)
-    start_scheduler()
-    stop_scheduler()
-    _background_tasks.clear()
+    logger.info("[shutdown] lifespan begin")
+    try:
+        start_scheduler()
+        logger.info("[shutdown] scheduler started for cleanup path")
+    except Exception:
+        logger.exception("[shutdown] scheduler start failed")
+
+    try:
+        stop_scheduler()
+        logger.info("[shutdown] scheduler stopped")
+    except Exception:
+        logger.exception("[shutdown] scheduler stop failed")
+
+    _background_jobs.clear()
+    logger.info("[shutdown] lifespan complete")
 
 
 def _warmup_sync_caches() -> None:
     """동기 워밍 (executor에서 실행)."""
-    # 1. 기존 워밍
-    _warmup_caches()
-
-    # 2. Supabase 캐시 로드 (별도 스레드에서)
     try:
-        import asyncio
-        from services.cache_warmer import warm_all_from_supabase, warm_sector_cache
-        # 새 이벤트 루프에서 실행
+        logger.info("[startup] background warmup thread begin")
+        _warmup_caches()
+        logger.info("[startup] background warmup local phase done")
+
+        logger.info("[startup] supabase warmup phase start")
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(warm_all_from_supabase())
         loop.run_until_complete(warm_sector_cache())
         loop.close()
+        logger.info("[startup] supabase warmup phase done")
     except Exception:
-        pass
+        logger.exception("[startup] background warmup thread failed")
 
 
 app = FastAPI(

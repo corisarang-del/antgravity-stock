@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildCorsHeaders, enforceRateLimit, ensureAllowedOrigin, getClientIp, getErrorMessage } from "../_shared/security.ts";
 
 const TOSS_SECRET_KEY = Deno.env.get("TOSS_SECRET_KEY") ?? "";
+const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY") ?? "";
 const TOSS_API_BASE = "https://api.tosspayments.com/v1";
 
 serve(async (req) => {
@@ -28,7 +29,7 @@ serve(async (req) => {
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      SERVICE_ROLE_KEY
     );
 
     // 토큰으로 유저 조회
@@ -52,6 +53,13 @@ serve(async (req) => {
 
     if (!TOSS_SECRET_KEY) {
       return new Response(JSON.stringify({ error: "Payment server misconfigured" }), {
+        status: 500,
+        headers: { ...cors.headers, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!SERVICE_ROLE_KEY) {
+      return new Response(JSON.stringify({ error: "Service role key missing" }), {
         status: 500,
         headers: { ...cors.headers, "Content-Type": "application/json" },
       });

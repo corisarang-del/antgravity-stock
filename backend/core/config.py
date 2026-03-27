@@ -7,12 +7,13 @@
 - SERVICE_ROLE_KEY, GEMINI_API_KEY는 절대 프론트엔드로 전달 금지
 """
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
     # 앱 환경
     APP_ENV: str = "development"
+    STARTUP_WARMUP_ENABLED: Optional[bool] = None
 
     # Supabase (서버사이드 전용 - 절대 프론트로 노출 금지)
     SUPABASE_URL: str = ""
@@ -37,6 +38,12 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> List[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+
+    @property
+    def startup_warmup_enabled(self) -> bool:
+        if self.STARTUP_WARMUP_ENABLED is None:
+            return self.APP_ENV != "production"
+        return self.STARTUP_WARMUP_ENABLED
 
     # 캐싱 설정 (API 비용 절감 핵심!)
     DIARY_CACHE_HOURS: int = 24       # Gemini 호출: 하루 1회만
