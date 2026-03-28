@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
@@ -15,6 +16,16 @@ from services.runtime_cache import TtlCache
 
 
 SNAPSHOT_CACHE = TtlCache[MarketSnapshot](ttl_seconds=60)
+
+
+def _coerce_finite(value: float | int | None) -> float:
+    if value is None:
+        return 0.0
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return numeric if math.isfinite(numeric) else 0.0
 
 
 class MarketSnapshotService:
@@ -59,14 +70,17 @@ class MarketSnapshotService:
         if price == 0.0 and previous_close == 0.0:
             price, previous_close, volume = self._load_from_training_sample(symbol)
 
+        price = _coerce_finite(price)
+        previous_close = _coerce_finite(previous_close)
+
         change_amount = price - previous_close
-        change_rate = (change_amount / previous_close * 100) if previous_close else 0.0
+        change_rate = _coerce_finite((change_amount / previous_close * 100) if previous_close else 0.0)
 
         snapshot = MarketSnapshot(
             symbol=symbol,
             price=round(price, 2),
             previous_close=round(previous_close, 2),
-            change_amount=round(change_amount, 2),
+            change_amount=round(_coerce_finite(change_amount), 2),
             change_rate=round(change_rate, 2),
             volume=volume,
             market_status="delayed" if is_delayed else "open",
