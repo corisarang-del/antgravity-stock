@@ -10,6 +10,19 @@ from pydantic_settings import BaseSettings
 from typing import List, Optional
 
 
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "http://localhost:3002",
+    "http://127.0.0.1:3002",
+    "https://antgravity-stock.vercel.app",
+    "https://antgravity-stock-todocori.vercel.app",
+    "https://antgravity-stock-git-main-todocori.vercel.app",
+]
+
+
 class Settings(BaseSettings):
     # 앱 환경
     APP_ENV: str = "development"
@@ -26,18 +39,20 @@ class Settings(BaseSettings):
 
     # CORS — 쉼표 구분 문자열로 받아서 파싱
     # .env 예시: CORS_ORIGINS=http://localhost:3000,https://antgravity.app
-    CORS_ORIGINS: str = ",".join([
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-        "http://localhost:3002",
-        "http://127.0.0.1:3002",
-    ])
+    CORS_ORIGINS: str = ",".join(DEFAULT_CORS_ORIGINS)
 
     @property
     def cors_origins_list(self) -> List[str]:
-        return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+        configured = [
+            origin.strip().strip("\"'")
+            for origin in self.CORS_ORIGINS.split(",")
+            if origin.strip()
+        ]
+        merged: list[str] = []
+        for origin in [*DEFAULT_CORS_ORIGINS, *configured]:
+            if origin not in merged:
+                merged.append(origin)
+        return merged
 
     @property
     def startup_warmup_enabled(self) -> bool:
