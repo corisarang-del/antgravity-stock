@@ -1,10 +1,19 @@
 import { motion } from "framer-motion";
-import { AnalystTarget } from "@/data/stockData";
 import { ArrowUp, ArrowDown, Building2 } from "lucide-react";
 
 interface AnalystTargetsProps {
-  targets: AnalystTarget[];
+  targets: AnalystTargetItem[];
   currentPrice: number;
+  predictedPrice?: number | null;
+}
+
+export interface AnalystTargetItem {
+  firm: string;
+  analyst: string;
+  rating: string;
+  target: number;
+  prevTarget: number;
+  date: string;
 }
 
 const ratingColor: Record<string, string> = {
@@ -18,7 +27,38 @@ const ratingColor: Record<string, string> = {
   "SELL": "text-loss bg-loss/10 border-loss/30",
 };
 
-export function AnalystTargets({ targets, currentPrice }: AnalystTargetsProps) {
+export function AnalystTargets({ targets, currentPrice, predictedPrice }: AnalystTargetsProps) {
+  if (targets.length === 0) {
+    const hasPrediction = typeof predictedPrice === "number" && predictedPrice > 0;
+    const upside = hasPrediction ? ((predictedPrice - currentPrice) / currentPrice) * 100 : null;
+
+    return (
+      <div className="space-y-4">
+        {hasPrediction ? (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="glass rounded-xl p-3 text-center">
+              <div className="text-xs text-muted-foreground mb-1">AI 예측가</div>
+              <div className="font-mono font-bold text-sm">
+                {predictedPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </div>
+            </div>
+            <div className="glass rounded-xl p-3 text-center">
+              <div className="text-xs text-muted-foreground mb-1">현재가 대비</div>
+              <div className={`font-mono font-bold text-sm ${upside !== null && upside >= 0 ? "text-gain" : "text-loss"}`}>
+                {upside !== null ? `${upside >= 0 ? "+" : ""}${upside.toFixed(1)}%` : "—"}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="glass rounded-xl p-5 text-sm text-muted-foreground text-center leading-relaxed">
+          공개 애널리스트 목표가 피드는 아직 연결되지 않았어.
+          {hasPrediction ? " 지금은 AI 예측가만 참고용으로 보여주고 있어." : ""}
+        </div>
+      </div>
+    );
+  }
+
   const avgTarget = targets.reduce((sum, t) => sum + t.target, 0) / targets.length;
   const upside = ((avgTarget - currentPrice) / currentPrice) * 100;
 

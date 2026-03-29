@@ -62,6 +62,8 @@ export function StockChart({ data, symbol, isGain }: StockChartProps) {
   const lineColor = isGain ? gainColor : lossColor;
   const predictColor = "hsl(178, 58%, 40%)";
 
+  const predictionStartLabel = data.length >= 10 ? data[data.length - 10]?.date : undefined;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -101,13 +103,15 @@ export function StockChart({ data, symbol, isGain }: StockChartProps) {
             width={70}
           />
           <Tooltip content={<CustomTooltip />} />
-          <ReferenceLine
-            x={data[data.length - 10]?.date}
-            stroke={predictColor}
-            strokeDasharray="4 4"
-            strokeOpacity={0.6}
-            label={{ value: "예측 시작", fill: predictColor, fontSize: 10, position: "top" }}
-          />
+          {predictionStartLabel ? (
+            <ReferenceLine
+              x={predictionStartLabel}
+              stroke={predictColor}
+              strokeDasharray="4 4"
+              strokeOpacity={0.6}
+              label={{ value: "예측 시작", fill: predictColor, fontSize: 10, position: "top" }}
+            />
+          ) : null}
           <Area
             type="monotone"
             dataKey="price"

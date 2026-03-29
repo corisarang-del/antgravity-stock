@@ -1,17 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/useAuth";
-import { STOCKS } from "@/data/stockData";
+import { getStockMetadata } from "@/data/stockUniverse";
 import {
   createDashboardPortfolioHolding,
   deleteDashboardPortfolioHolding,
   fetchDashboardPortfolioHoldings,
   fetchDashboardPortfolioSummary,
+  fetchStockBundle,
   type DashboardPortfolioSummary,
 } from "@/lib/apiClient";
 import type { Holding } from "@/pages/Portfolio";
-
-const STOCK_BY_SYMBOL = new Map(STOCKS.map((stock) => [stock.symbol, stock]));
 
 export function usePortfolio() {
   const { user } = useAuth();
@@ -71,8 +70,19 @@ export function usePortfolio() {
 
   const addHolding = async (input: { symbol: string; quantity: number; avgPrice: number }) => {
     if (!user) return;
-    const stock = STOCK_BY_SYMBOL.get(input.symbol);
+    const stock = getStockMetadata(input.symbol);
     if (!stock) return;
+    let currentPrice = input.avgPrice;
+    try {
+      const bundle = await fetchStockBundle(input.symbol, "3mo");
+      const rows = bundle.detail.data;
+      const lastRow = rows[rows.length - 1];
+      if (lastRow?.close) {
+        currentPrice = lastRow.close;
+      }
+    } catch {
+      // 현재가는 번들 실패 시 평균 매입가로 폴백
+    }
     try {
       const item = await createDashboardPortfolioHolding({
         symbol: input.symbol,
@@ -80,7 +90,7 @@ export function usePortfolio() {
         sector: stock.sector,
         quantity: input.quantity,
         avgPrice: input.avgPrice,
-        currentPrice: stock.price,
+        currentPrice,
       });
       setHoldings((prev) => {
         const nextHoldings = [...prev, item];
@@ -111,7 +121,7 @@ export function usePortfolio() {
         sector: stock.sector,
         quantity: input.quantity,
         avg_price: input.avgPrice,
-        current_price: stock.price,
+        current_price: currentPrice,
       })
       .select()
       .single();

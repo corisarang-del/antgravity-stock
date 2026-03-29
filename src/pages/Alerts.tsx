@@ -5,14 +5,11 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/useAuth";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useSubscription } from "@/hooks/useSubscription";
-import { STOCKS } from "@/data/stockData";
 import { AuthModal } from "@/components/AuthModal";
 import { UserMenu } from "@/components/UserMenu";
 import { AddAlertModal } from "@/components/AddAlertModal";
 import { PricingModal } from "@/components/PricingModal";
 import { FREE_LIMITS } from "@/config/toss";
-
-const STOCK_BY_SYMBOL = new Map(STOCKS.map((stock) => [stock.symbol, stock]));
 
 const Alerts = () => {
   const { user, loading: authLoading } = useAuth();
@@ -130,9 +127,6 @@ const Alerts = () => {
             ) : (
               <div className="space-y-3">
                 {alerts.map((alert, idx) => {
-                  const stock = STOCK_BY_SYMBOL.get(alert.symbol);
-                  const currentPrice = stock?.price ?? 0;
-                  const diff = currentPrice > 0 ? ((alert.targetPrice - currentPrice) / currentPrice) * 100 : 0;
                   return (
                     <motion.div
                       key={alert.id}
@@ -151,11 +145,6 @@ const Alerts = () => {
                         </div>
                         <div className="text-xs text-muted-foreground">
                           목표가: <span className="font-mono font-semibold text-foreground">{alert.targetPrice.toLocaleString()}</span>
-                          {currentPrice > 0 && (
-                            <span className={`ml-2 ${diff >= 0 ? "text-gain" : "text-loss"}`}>
-                              ({diff >= 0 ? "+" : ""}{diff.toFixed(2)}%)
-                            </span>
-                          )}
                         </div>
                       </div>
                       <div className="text-right shrink-0 text-xs text-muted-foreground">

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/useAuth";
-import { STOCKS } from "@/data/stockData";
+import { getStockMetadata } from "@/data/stockUniverse";
 import {
   createDashboardWatchlistItem,
   deleteDashboardWatchlistItem,
@@ -15,8 +15,6 @@ export interface WatchItem {
   sector: string;
   addedAt: string;
 }
-
-const STOCK_BY_SYMBOL = new Map(STOCKS.map((stock) => [stock.symbol, stock]));
 
 export function useWatchlist() {
   const { user } = useAuth();
@@ -51,7 +49,7 @@ export function useWatchlist() {
 
   const addToWatchlist = async (symbol: string) => {
     if (!user) return false;
-    const stock = STOCK_BY_SYMBOL.get(symbol);
+    const stock = getStockMetadata(symbol);
     if (!stock) return false;
     try {
       const item = await createDashboardWatchlistItem({

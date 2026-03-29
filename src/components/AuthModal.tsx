@@ -1,28 +1,21 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Brain, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { getSafeRedirectUrl } from "@/lib/authRedirect";
+import { X, Brain, AlertCircle } from "lucide-react";
+import { useAuth } from "@/contexts/useAuth";
 
 interface Props {
   onClose: () => void;
-  defaultTab?: "login" | "signup";
 }
 
-export function AuthModal({ onClose, defaultTab = "login" }: Props) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
+export function AuthModal({ onClose }: Props) {
+  const { signInWithOAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleGoogle = async () => {
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: getSafeRedirectUrl("/") },
-    });
+    const { error } = await signInWithOAuth("google", "/");
     if (error) setError("Google 로그인에 실패했습니다. 다시 시도해주세요.");
     setLoading(false);
   };
@@ -30,21 +23,8 @@ export function AuthModal({ onClose, defaultTab = "login" }: Props) {
   const handleKakao = async () => {
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "kakao",
-      options: { redirectTo: getSafeRedirectUrl("/") },
-    });
+    const { error } = await signInWithOAuth("kakao", "/");
     if (error) setError("카카오 로그인 실패: 카카오 OAuth 설정을 확인해주세요.");
-    setLoading(false);
-  };
-
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setError("이메일 또는 비밀번호가 올바르지 않습니다.");
-    else onClose();
     setLoading(false);
   };
 
@@ -76,10 +56,13 @@ export function AuthModal({ onClose, defaultTab = "login" }: Props) {
           </button>
         </div>
 
-        <h2 className="text-base font-semibold mb-5 text-center">로그인</h2>
+        <h2 className="text-base font-semibold mb-2 text-center">소셜 로그인</h2>
+        <p className="text-xs text-muted-foreground text-center mb-5 leading-relaxed">
+          이메일 로그인은 제거했고, 이제 구글 또는 카카오로만 로그인할 수 있어.
+        </p>
 
         {/* Social Login */}
-        <div className="space-y-2 mb-4">
+        <div className="space-y-2">
           <button
             onClick={handleGoogle}
             disabled={loading}
@@ -105,69 +88,19 @@ export function AuthModal({ onClose, defaultTab = "login" }: Props) {
             카카오로 계속하기
           </button>
         </div>
-
-        {/* Divider */}
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex-1 h-px bg-border" />
-          <span className="text-xs text-muted-foreground">또는 이메일로 로그인</span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
-
-        {/* Email Login Only */}
-        <form onSubmit={handleEmailLogin} className="space-y-3">
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="이메일"
-              required
-              className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-secondary border border-border text-sm focus:outline-none focus:border-primary transition-colors"
-            />
-          </div>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type={showPw ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="비밀번호"
-              required
-              minLength={6}
-              className="w-full pl-9 pr-9 py-2.5 rounded-lg bg-secondary border border-border text-sm focus:outline-none focus:border-primary transition-colors"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPw(!showPw)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-loss/10 border border-loss/20 text-xs text-loss mt-4"
             >
-              {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-loss/10 border border-loss/20 text-xs text-loss"
-              >
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                {error}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            {loading ? "처리 중..." : "로그인"}
-          </button>
-        </form>
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );

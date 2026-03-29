@@ -1,14 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { X, Plus, Search } from "lucide-react";
-import { STOCKS } from "@/data/stockData";
+import { STOCK_UNIVERSE, getStockMetadata } from "@/data/stockUniverse";
+import { useStockBundle } from "@/hooks/useStockBundle";
 
 interface Props {
   onClose: () => void;
   onAdd: (holding: { symbol: string; quantity: number; avgPrice: number }) => void;
 }
-
-const STOCK_BY_SYMBOL = new Map(STOCKS.map((stock) => [stock.symbol, stock]));
 
 export function AddHoldingModal({ onClose, onAdd }: Props) {
   const [symbol, setSymbol] = useState("");
@@ -20,23 +19,33 @@ export function AddHoldingModal({ onClose, onAdd }: Props) {
   const filteredStocks = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
-    return STOCKS.filter(
+    return STOCK_UNIVERSE.filter(
       (stock) =>
         stock.symbol.toLowerCase().includes(normalizedQuery) ||
         stock.name.toLowerCase().includes(normalizedQuery)
     ).slice(0, 6);
   }, [searchQuery]);
 
-  const selectedStock = useMemo(() => STOCK_BY_SYMBOL.get(symbol), [symbol]);
+  const selectedStock = useMemo(() => getStockMetadata(symbol), [symbol]);
+  const { data: selectedBundle } = useStockBundle(symbol, "3mo");
+  const selectedCurrentPrice = useMemo(() => {
+    const rows = selectedBundle?.detail?.data ?? [];
+    const lastRow = rows[rows.length - 1];
+    return lastRow?.close ?? null;
+  }, [selectedBundle]);
+
+  useEffect(() => {
+    if (selectedCurrentPrice !== null && !avgPrice) {
+      setAvgPrice(selectedCurrentPrice.toString());
+    }
+  }, [avgPrice, selectedCurrentPrice]);
 
   const handleSelect = (sym: string) => {
-    const stock = STOCK_BY_SYMBOL.get(sym);
+    const stock = getStockMetadata(sym);
     setSymbol(sym);
-    setSearchQuery(sym);
+    setSearchQuery(stock?.name ?? sym);
     setShowDropdown(false);
-    if (stock && !avgPrice) {
-      setAvgPrice(stock.price.toString());
-    }
+    setAvgPrice("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -111,12 +120,12 @@ export function AddHoldingModal({ onClose, onAdd }: Props) {
                         <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
                           {stock.symbol.slice(0, 2)}
                         </div>
-                        <div>
-                          <div className="text-xs font-mono font-semibold">{stock.symbol}</div>
-                          <div className="text-xs text-muted-foreground">{stock.name}</div>
-                        </div>
+                      <div>
+                        <div className="text-xs font-mono font-semibold">{stock.symbol}</div>
+                        <div className="text-xs text-muted-foreground">{stock.name}</div>
                       </div>
-                      <span className="text-xs font-mono text-foreground">{stock.price.toLocaleString()}</span>
+                    </div>
+                      <span className="text-[11px] text-muted-foreground">{stock.sector}</span>
                     </button>
                   ))}
                 </motion.div>
@@ -128,7 +137,9 @@ export function AddHoldingModal({ onClose, onAdd }: Props) {
               <div className="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 text-xs">
                 <span className="font-mono font-semibold text-primary">{selectedStock.symbol}</span>
                 <span className="text-muted-foreground">{selectedStock.name}</span>
-                <span className="ml-auto font-mono text-foreground">현재가: {selectedStock.price.toLocaleString()}</span>
+                <span className="ml-auto font-mono text-foreground">
+                  현재가: {selectedCurrentPrice?.toLocaleString() ?? "-"}
+                </span>
               </div>
             )}
           </div>
@@ -162,9 +173,11 @@ export function AddHoldingModal({ onClose, onAdd }: Props) {
             {selectedStock && avgPrice && (
               <div className="mt-1 text-xs text-muted-foreground">
                 현재가 대비:{" "}
-                <span className={selectedStock.price >= parseFloat(avgPrice) ? "text-gain" : "text-loss"}>
-                  {selectedStock.price >= parseFloat(avgPrice) ? "+" : ""}
-                  {(((selectedStock.price - parseFloat(avgPrice)) / parseFloat(avgPrice)) * 100).toFixed(2)}%
+                <span className={(selectedCurrentPrice ?? 0) >= parseFloat(avgPrice) ? "text-gain" : "text-loss"}>
+                  {(selectedCurrentPrice ?? 0) >= parseFloat(avgPrice) ? "+" : ""}
+                  {selectedCurrentPrice
+                    ? (((selectedCurrentPrice - parseFloat(avgPrice)) / parseFloat(avgPrice)) * 100).toFixed(2)
+                    : "-.--"}%
                 </span>
               </div>
             )}

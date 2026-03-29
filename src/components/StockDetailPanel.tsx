@@ -1,19 +1,18 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, BarChart2, Newspaper, Target } from "lucide-react";
-import {
-  STOCKS,
-  STOCK_FINANCIALS,
-  getStockNews,
-  getAnalystTargets,
-} from "@/data/stockData";
+import { getStockMetadata } from "@/data/stockUniverse";
 import { StockChart } from "@/components/StockChart";
-import { FinancialSummary } from "@/components/FinancialSummary";
 import { NewsFeed } from "@/components/NewsFeed";
 import { AnalystTargets } from "@/components/AnalystTargets";
 import { PredictionPanel } from "@/components/PredictionPanel";
+import { FundamentalsGrid } from "@/components/FundamentalsGrid";
+import { HistoricalTable } from "@/components/HistoricalTable";
+import { InvestmentScoreCard } from "@/components/InvestmentScoreCard";
 import { useStockBundle } from "@/hooks/useStockBundle";
-import { type OhlcvRow } from "@/lib/apiClient";
+import { useFundamentals } from "@/hooks/useFundamentals";
+import { fetchSentiment, type OhlcvRow } from "@/lib/apiClient";
 
 const TABS = [
   { id: "chart", label: "차트", icon: BarChart2 },
@@ -33,8 +32,6 @@ const TIMEFRAMES = [
   { label: "2M", value: "60" },
   { label: "3M", value: "90" },
 ];
-
-const STOCK_MAP = new Map(STOCKS.map((s) => [s.symbol, s]));
 
 const RISK_SCORE: Record<string, number> = {
   low: 80,
@@ -79,49 +76,69 @@ interface Props {
 export function StockDetailPanel({ symbol }: Props) {
   const [activeTab, setActiveTab] = useState("chart");
   const [timeframe, setTimeframe] = useState("60");
+  const metadata = getStockMetadata(symbol);
 
   const { data: bundle, isLoading } = useStockBundle(
     symbol,
     TIMEFRAME_PERIOD[timeframe]
   );
+  const { data: fundamentals, isLoading: fundamentalsLoading } = useFundamentals(symbol);
+  const { data: sentiment } = useQuery({
+    queryKey: ["sentiment", symbol],
+    queryFn: () => fetchSentiment(symbol),
+    staleTime: 30 * 60 * 1000,
+    enabled: Boolean(symbol),
+  });
 
-  // 실제 데이터 우선, 없으면 mock 폴백
-  const mockStock = STOCK_MAP.get(symbol) ?? STOCKS[0];
-  const financials = STOCK_FINANCIALS[symbol] || STOCK_FINANCIALS["AAPL"];
-  const news = getStockNews(symbol);
-  const analystTargets = getAnalystTargets(symbol);
-
-  // 번들 데이터에서 파생값 계산
   const ohlcv = bundle?.detail?.data ?? [];
   const prediction = bundle?.prediction;
   const predictedPrice = prediction?.predicted_prices?.[0];
-  const lastClose = ohlcv.length > 0 ? ohlcv[ohlcv.length - 1].close : mockStock.price;
-  const prevClose = ohlcv.length > 1 ? ohlcv[ohlcv.length - 2].close : lastClose - mockStock.change;
-  const change = lastClose - prevClose;
-  const changePct = prevClose !== 0 ? (change / prevClose) * 100 : mockStock.changePct;
+  const lastClose = ohlcv.length > 0 ? ohlcv[ohlcv.length - 1].close : null;
+  const prevClose = ohlcv.length > 1 ? ohlcv[ohlcv.length - 2].close : null;
+  const change = lastClose !== null && prevClose !== null ? lastClose - prevClose : null;
+  const changePct = change !== null && prevClose ? (change / prevClose) * 100 : null;
 
-  const displayName = bundle?.detail?.name ?? mockStock.name;
-  const displayMarket = bundle?.detail?.market ?? mockStock.sector;
-  const currentPrice = isLoading ? mockStock.price : lastClose;
-  const currentChange = isLoading ? mockStock.change : change;
-  const currentChangePct = isLoading ? mockStock.changePct : changePct;
-  const isGain = currentChangePct >= 0;
+  const displayName = bundle?.detail?.name ?? metadata?.name ?? symbol;
+  const displayMarket = fundamentals?.sector ?? metadata?.sector ?? bundle?.detail?.market ?? "정보 없음";
+  const currentPrice = lastClose;
+  const currentChange = change;
+  const currentChangePct = changePct;
+  const isGain = (currentChangePct ?? 0) >= 0;
 
-  const signal = predictedPrice
+  const signal = predictedPrice && lastClose
     ? calcSignal(predictedPrice, lastClose)
-    : mockStock.signal;
+    : "HOLD";
 
-  const score = prediction
+  const score = prediction && prediction.volatility !== undefined
     ? Math.round(
         RISK_SCORE[prediction.risk_level?.toLowerCase()] ??
           Math.max(0, Math.min(100, 100 - prediction.volatility * 10))
       )
-    : mockStock.prediction;
+    : 0;
 
   const chartData =
     ohlcv.length > 0
       ? toChartData(ohlcv, predictedPrice)
       : undefined;
+  const predictionFactors = [
+    { name: "기술적 분석", score: Math.min(100, score + 8) },
+    { name: "펀더멘털", score: fundamentals?.score ? Math.round((fundamentals.score.total / 100) * 100) : Math.max(0, score - 5) },
+    { name: "감성 분석", score: sentiment ? sentiment.fear_greed_index : Math.max(0, score - 2) },
+    { name: "거래량 패턴", score: Math.min(100, score + 6) },
+    { name: "모멘텀", score: Math.min(100, score + 3) },
+  ];
+  const newsItems = sentiment
+    ? [
+        {
+          id: `${symbol}-sentiment`,
+          title: `${displayName} 투자 심리 요약`,
+          source: "AI Sentiment",
+          time: `최근 게시물 ${sentiment.post_count}건 기준`,
+          sentiment: sentiment.label,
+          description: sentiment.summary,
+        },
+      ]
+    : [];
 
   return (
     <div className="space-y-6">
@@ -153,24 +170,30 @@ export function StockDetailPanel({ symbol }: Props) {
           <div className="flex flex-wrap items-center gap-4 md:gap-6">
             <div className="text-right">
               <div className="text-2xl md:text-3xl font-bold font-mono tabular-nums">
-                {currentPrice.toLocaleString()}
+                {currentPrice !== null ? currentPrice.toLocaleString() : "—"}
               </div>
               <div
                 className={`flex items-center justify-end gap-1 text-sm font-mono font-semibold tabular-nums ${
                   isGain ? "text-gain" : "text-loss"
                 }`}
               >
-                {isGain ? (
+                {currentChangePct !== null && isGain ? (
                   <TrendingUp className="w-4 h-4" aria-hidden="true" />
-                ) : (
+                ) : currentChangePct !== null ? (
                   <TrendingDown className="w-4 h-4" aria-hidden="true" />
+                ) : null}
+                {currentChange !== null ? (
+                  <>
+                    {isGain ? "+" : ""}
+                    {currentChange.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    <span className="ml-1">
+                      ({isGain ? "+" : ""}
+                      {currentChangePct?.toFixed(2)}%)
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">당일 변동 데이터 없음</span>
                 )}
-                {isGain ? "+" : ""}
-                {currentChange.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                <span className="ml-1">
-                  ({isGain ? "+" : ""}
-                  {currentChangePct.toFixed(2)}%)
-                </span>
               </div>
             </div>
             <div
@@ -250,19 +273,49 @@ export function StockDetailPanel({ symbol }: Props) {
                 <div className="h-80">
                   {isLoading ? (
                     <div className="h-full bg-secondary/30 rounded-lg animate-pulse" />
-                  ) : (
+                  ) : chartData && chartData.length > 0 ? (
                     <StockChart
-                      data={chartData ?? []}
+                      data={chartData}
                       symbol={symbol}
                       isGain={isGain}
                     />
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                      가격 데이터를 아직 불러오지 못했어
+                    </div>
                   )}
                 </div>
               </div>
             )}
 
             {activeTab === "financials" && (
-              <FinancialSummary financials={financials} symbol={symbol} />
+              <div className="space-y-4">
+                {fundamentalsLoading ? (
+                  <div className="glass rounded-xl p-5 text-sm text-muted-foreground text-center">
+                    재무 데이터를 불러오는 중이야
+                  </div>
+                ) : fundamentals ? (
+                  <>
+                    <InvestmentScoreCard score={fundamentals.score} />
+                    <div className="glass rounded-xl p-4">
+                      <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-4">
+                        핵심 재무지표
+                      </div>
+                      <FundamentalsGrid data={fundamentals} />
+                    </div>
+                    <div className="glass rounded-xl p-4">
+                      <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-4">
+                        연간 재무 히스토리
+                      </div>
+                      <HistoricalTable symbol={symbol} />
+                    </div>
+                  </>
+                ) : (
+                  <div className="glass rounded-xl p-5 text-sm text-muted-foreground text-center">
+                    재무 데이터를 아직 제공하지 못하고 있어
+                  </div>
+                )}
+              </div>
             )}
 
             {activeTab === "news" && (
@@ -270,7 +323,10 @@ export function StockDetailPanel({ symbol }: Props) {
                 <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">
                   최신 뉴스 및 감성 분석
                 </div>
-                <NewsFeed news={news} />
+                <NewsFeed
+                  news={newsItems}
+                  emptyMessage="공개 뉴스 피드가 아직 연결되지 않았어. 연결 전까지는 감성 요약만 표시돼."
+                />
               </div>
             )}
 
@@ -279,7 +335,11 @@ export function StockDetailPanel({ symbol }: Props) {
                 <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">
                   애널리스트 투자의견 및 목표주가
                 </div>
-                <AnalystTargets targets={analystTargets} currentPrice={currentPrice} />
+                <AnalystTargets
+                  targets={[]}
+                  currentPrice={currentPrice ?? 0}
+                  predictedPrice={predictedPrice}
+                />
               </div>
             )}
           </motion.div>
@@ -290,7 +350,19 @@ export function StockDetailPanel({ symbol }: Props) {
           <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">
             AI 분석
           </div>
-          <PredictionPanel score={score} signal={signal} symbol={symbol} />
+          {prediction ? (
+            <PredictionPanel
+              score={score}
+              signal={signal}
+              symbol={symbol}
+              factors={predictionFactors}
+              summary={sentiment?.summary}
+            />
+          ) : (
+            <div className="glass rounded-xl p-5 text-sm text-muted-foreground text-center">
+              AI 예측 데이터를 아직 불러오지 못했어
+            </div>
+          )}
         </div>
       </div>
     </div>

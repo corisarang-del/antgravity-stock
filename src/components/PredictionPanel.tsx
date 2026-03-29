@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
 import { Brain, Target, Zap, TrendingUp, ShieldCheck, Crown } from "lucide-react";
-import { AI_FACTORS } from "@/data/stockData";
 import { ProGate } from "@/components/ProGate";
 import { useSubscription } from "@/hooks/useSubscription";
 
@@ -8,6 +7,11 @@ interface PredictionPanelProps {
   score: number;
   signal: string;
   symbol: string;
+  factors?: {
+    name: string;
+    score: number;
+  }[];
+  summary?: string;
 }
 
 const getScoreColor = (score: number) => {
@@ -47,12 +51,23 @@ const getSignalConfig = (signal: string) => {
   return configs[signal] || configs["HOLD"];
 };
 
-export function PredictionPanel({ score, signal, symbol }: PredictionPanelProps) {
+function buildDefaultFactors(score: number) {
+  return [
+    { name: "기술적 분석", score: Math.min(100, score + 8) },
+    { name: "펀더멘털", score: Math.max(0, score - 5) },
+    { name: "감성 분석", score: Math.max(0, score - 2) },
+    { name: "거래량 패턴", score: Math.min(100, score + 6) },
+    { name: "모멘텀", score: Math.min(100, score + 3) },
+  ];
+}
+
+export function PredictionPanel({ score, signal, symbol, factors, summary }: PredictionPanelProps) {
   const { isPro } = useSubscription();
   const cfg = getSignalConfig(signal);
   const scoreColor = getScoreColor(score);
   const circumference = 2 * Math.PI * 40;
   const offset = circumference - (score / 100) * circumference;
+  const factorItems = factors && factors.length > 0 ? factors : buildDefaultFactors(score);
 
   const panelContent = (
     <div className="space-y-4">
@@ -100,7 +115,7 @@ export function PredictionPanel({ score, signal, symbol }: PredictionPanelProps)
               {cfg.label} ({signal})
             </div>
             <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-              AI 모델이 {symbol} 종목에 대해 <strong className={cfg.color}>{cfg.label}</strong> 신호를 감지했습니다. 최근 7일간의 복합 지표 분석 결과입니다.
+              {summary ?? `AI 모델이 ${symbol} 종목에 대해 ${cfg.label} 신호를 감지했습니다. 최근 가격과 변동성 지표를 함께 반영한 결과입니다.`}
             </p>
           </div>
         </div>
@@ -113,7 +128,7 @@ export function PredictionPanel({ score, signal, symbol }: PredictionPanelProps)
           <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">요인 분석</span>
         </div>
         <div className="space-y-3">
-          {AI_FACTORS.map((factor, i) => (
+          {factorItems.map((factor, i) => (
             <div key={factor.name}>
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-muted-foreground">{factor.name}</span>

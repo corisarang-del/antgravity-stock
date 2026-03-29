@@ -1,26 +1,38 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { X, Search, Bell } from "lucide-react";
-import { STOCKS } from "@/data/stockData";
+import { STOCK_UNIVERSE, getStockMetadata, type StockMetadata } from "@/data/stockUniverse";
 import { useAlerts } from "@/hooks/useAlerts";
+import { useStockBundle } from "@/hooks/useStockBundle";
 
 interface Props { onClose: () => void; }
-
-const STOCK_BY_SYMBOL = new Map(STOCKS.map((stock) => [stock.symbol, stock]));
 
 export function AddAlertModal({ onClose }: Props) {
   const { addAlert } = useAlerts();
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<typeof STOCKS[0] | null>(null);
+  const [selected, setSelected] = useState<StockMetadata | null>(null);
   const [alertType, setAlertType] = useState<"above" | "below">("above");
   const [targetPrice, setTargetPrice] = useState("");
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const { data: selectedBundle } = useStockBundle(selected?.symbol ?? "", "3mo");
+
+  const currentPrice = useMemo(() => {
+    const rows = selectedBundle?.detail?.data ?? [];
+    const lastRow = rows[rows.length - 1];
+    return lastRow?.close ?? null;
+  }, [selectedBundle]);
+
+  useEffect(() => {
+    if (currentPrice !== null && !targetPrice) {
+      setTargetPrice(currentPrice.toString());
+    }
+  }, [currentPrice, targetPrice]);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return STOCKS.filter(
+    return STOCK_UNIVERSE.filter(
       (stock) =>
         stock.symbol.toLowerCase().includes(normalizedQuery) ||
         stock.name.toLowerCase().includes(normalizedQuery)
@@ -75,13 +87,13 @@ export function AddAlertModal({ onClose }: Props) {
               {showDropdown && query && filtered.length > 0 && (
                 <div className="absolute top-full mt-1 left-0 right-0 z-10 glass rounded-lg border border-border shadow-xl overflow-hidden">
                   {filtered.map((stock) => (
-                    <button key={stock.symbol} type="button" onClick={() => { setSelected(STOCK_BY_SYMBOL.get(stock.symbol) ?? stock); setQuery(stock.symbol); setTargetPrice(stock.price.toString()); setShowDropdown(false); }}
+                    <button key={stock.symbol} type="button" onClick={() => { setSelected(getStockMetadata(stock.symbol) ?? stock); setQuery(stock.name); setTargetPrice(""); setShowDropdown(false); }}
                       className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-secondary/50 transition-colors text-left">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-mono font-semibold">{stock.symbol}</span>
                         <span className="text-xs text-muted-foreground">{stock.name}</span>
                       </div>
-                      <span className="text-xs font-mono">{stock.price.toLocaleString()}</span>
+                      <span className="text-[11px] text-muted-foreground">{stock.sector}</span>
                     </button>
                   ))}
                 </div>
@@ -90,7 +102,7 @@ export function AddAlertModal({ onClose }: Props) {
             {selected && (
               <div className="mt-2 text-xs px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 flex justify-between">
                 <span className="font-mono font-semibold text-primary">{selected.symbol}</span>
-                <span className="text-muted-foreground">현재가: <span className="font-mono text-foreground">{selected.price.toLocaleString()}</span></span>
+                <span className="text-muted-foreground">현재가: <span className="font-mono text-foreground">{currentPrice?.toLocaleString() ?? "-"}</span></span>
               </div>
             )}
           </div>

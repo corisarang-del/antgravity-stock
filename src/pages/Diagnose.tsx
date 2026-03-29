@@ -5,9 +5,10 @@ import {
   Search, Brain, TrendingUp, ShieldCheck, Zap, Sparkles,
   ArrowRight, Target, BarChart2, Activity,
 } from "lucide-react";
-import { STOCKS } from "@/data/stockData";
+import { DIAGNOSE_SUGGESTION_SYMBOLS, STOCK_UNIVERSE, STOCK_METADATA_BY_SYMBOL } from "@/data/stockUniverse";
 import { AppShell } from "@/components/AppShell";
 import antCharacter from "@/assets/ant_character.png";
+import { useStockBundle } from "@/hooks/useStockBundle";
 
 /* ── helpers ─────────────────────────────── */
 const getScoreColor = (score: number) => {
@@ -43,23 +44,25 @@ const getSignalLabel = (signal: string) => {
   return map[signal] || signal;
 };
 
-const STOCK_MAP = new Map(STOCKS.map((s) => [s.symbol, s]));
+const RISK_SCORE: Record<string, number> = {
+  low: 80,
+  medium: 60,
+  high: 40,
+};
 
-const SUGGESTIONS = [
-  { symbol: "NVDA", label: "NVIDIA" },
-  { symbol: "005930", label: "삼성전자" },
-  { symbol: "000660", label: "SK하이닉스" },
-  { symbol: "AAPL", label: "Apple" },
-  { symbol: "298040", label: "효성중공업" },
-  { symbol: "PLTR", label: "Palantir" },
-  { symbol: "MSFT", label: "Microsoft" },
-  { symbol: "012330", label: "현대모비스" },
-].flatMap(({ symbol, label }) => {
-  const stock = STOCK_MAP.get(symbol);
-  return stock ? [{ stock, label }] : [];
+function calcSignal(predictedPrice: number | undefined, lastClose: number | undefined) {
+  if (!predictedPrice || !lastClose || lastClose === 0) return "HOLD";
+  const pct = ((predictedPrice - lastClose) / lastClose) * 100;
+  if (pct >= 5) return "STRONG BUY";
+  if (pct >= 2) return "BUY";
+  if (pct >= -2) return "HOLD";
+  return "SELL";
+}
+
+const SUGGESTIONS = DIAGNOSE_SUGGESTION_SYMBOLS.flatMap((symbol) => {
+  const stock = STOCK_METADATA_BY_SYMBOL.get(symbol);
+  return stock ? [stock] : [];
 });
-
-type Stock = (typeof STOCKS)[0];
 
 /* ── Score Ring ─────────────────────────── */
 function ScoreRing({ score, size = 140 }: { score: number; size?: number }) {
@@ -126,18 +129,19 @@ function FactorBar({ label, value, delay = 0 }: { label: string; value: number; 
 export default function Diagnose() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [dropResults, setDropResults] = useState<Stock[]>([]);
+  const [dropResults, setDropResults] = useState(STOCK_UNIVERSE.slice(0, 7));
   const [showDrop, setShowDrop] = useState(false);
-  const [diagnosed, setDiagnosed] = useState<Stock | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [diagnosedSymbol, setDiagnosedSymbol] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const skipDropRef = useRef(false);
+  const diagnosed = diagnosedSymbol ? STOCK_METADATA_BY_SYMBOL.get(diagnosedSymbol) ?? null : null;
+  const { data: bundle, isLoading, isError } = useStockBundle(diagnosedSymbol ?? "", "3mo");
 
   useEffect(() => {
     if (skipDropRef.current) { skipDropRef.current = false; setShowDrop(false); return; }
     const q = query.trim().toLowerCase();
-    if (!q) { setDropResults([]); setShowDrop(false); return; }
-    const f = STOCKS.filter(s =>
+    if (!q) { setDropResults(STOCK_UNIVERSE.slice(0, 7)); setShowDrop(false); return; }
+    const f = STOCK_UNIVERSE.filter(s =>
       s.symbol.toLowerCase().includes(q) ||
       s.name.toLowerCase().includes(q) ||
       s.sector.toLowerCase().includes(q)
@@ -155,31 +159,41 @@ export default function Diagnose() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const diagnose = (stock: Stock) => {
+  const diagnose = (stock: (typeof STOCK_UNIVERSE)[number]) => {
     skipDropRef.current = true;
     setQuery(stock.name);
-    setShowDrop(false);
-    setDiagnosed(null);
-    setLoading(true);
-    setTimeout(() => { setDiagnosed(stock); setLoading(false); }, 700);
+    setDiagnosedSymbol(stock.symbol);
   };
 
   const goToDetail = () => {
     if (diagnosed) navigate("/home", { state: { symbol: diagnosed.symbol } });
   };
 
-  const scoreColor = diagnosed ? getScoreColor(diagnosed.prediction) : "hsl(178,58%,40%)";
-  const grade = diagnosed ? getGrade(diagnosed.prediction) : "";
-  const gradeLabel = diagnosed ? getGradeLabel(diagnosed.prediction) : "";
+  const ohlcv = bundle?.detail?.data ?? [];
+  const lastClose = ohlcv.length > 0 ? ohlcv[ohlcv.length - 1].close : undefined;
+  const prevClose = ohlcv.length > 1 ? ohlcv[ohlcv.length - 2].close : undefined;
+  const change = lastClose !== undefined && prevClose !== undefined ? lastClose - prevClose : 0;
+  const changePct = lastClose !== undefined && prevClose ? (change / prevClose) * 100 : 0;
+  const predictedPrice = bundle?.prediction?.predicted_prices?.[0];
+  const score = bundle?.prediction
+    ? Math.round(
+        RISK_SCORE[bundle.prediction.risk_level?.toLowerCase()] ??
+          Math.max(0, Math.min(100, 100 - bundle.prediction.volatility * 10))
+      )
+    : 0;
+  const signal = calcSignal(predictedPrice, lastClose);
+  const scoreColor = diagnosed && bundle?.prediction ? getScoreColor(score) : "hsl(178,58%,40%)";
+  const grade = diagnosed && bundle?.prediction ? getGrade(score) : "";
+  const gradeLabel = diagnosed && bundle?.prediction ? getGradeLabel(score) : "";
   const isKorean = diagnosed ? /^\d{6}$/.test(diagnosed.symbol) : false;
 
   /* factor scores derived from prediction */
-  const factors = diagnosed ? [
-    { label: "기술적 분석", value: Math.min(100, diagnosed.prediction + 9) },
-    { label: "펀더멘털", value: Math.max(0, diagnosed.prediction - 4) },
-    { label: "거래량 패턴", value: Math.min(100, diagnosed.prediction + 14) },
-    { label: "감성 분석", value: Math.max(0, diagnosed.prediction - 9) },
-    { label: "섹터 모멘텀", value: Math.min(100, diagnosed.prediction + 5) },
+  const factors = diagnosed && bundle?.prediction ? [
+    { label: "기술적 분석", value: Math.min(100, score + 9) },
+    { label: "펀더멘털", value: Math.max(0, score - 4) },
+    { label: "거래량 패턴", value: Math.min(100, score + 14) },
+    { label: "감성 분석", value: Math.max(0, score - 9) },
+    { label: "섹터 모멘텀", value: Math.min(100, score + 5) },
   ] : [];
 
   return (
@@ -234,7 +248,7 @@ export default function Diagnose() {
 
             {/* Dropdown */}
             <AnimatePresence>
-              {showDrop && (
+              {showDrop && dropResults.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -272,20 +286,20 @@ export default function Diagnose() {
           </div>
 
           {/* Suggestion chips */}
-          {!diagnosed && !loading && (
+          {!diagnosed && !isLoading && (
             <motion.div
               className="flex flex-wrap justify-center gap-2 mb-8"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
             >
-              {SUGGESTIONS.map(({ stock, label }) => (
+              {SUGGESTIONS.map((stock) => (
                 <button
                   key={stock.symbol}
                   onClick={() => diagnose(stock)}
                   className="px-3 py-1.5 rounded-full bg-card border border-border text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all font-medium"
                 >
-                  {label}
+                  {stock.name}
                 </button>
               ))}
             </motion.div>
@@ -293,7 +307,7 @@ export default function Diagnose() {
 
           {/* Loading */}
           <AnimatePresence>
-            {loading && (
+            {isLoading && diagnosed && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -312,7 +326,7 @@ export default function Diagnose() {
 
           {/* ── Result Card ─────────────────── */}
           <AnimatePresence>
-            {diagnosed && !loading && (
+            {diagnosed && !isLoading && bundle?.prediction && lastClose !== undefined && (
               <motion.div
                 initial={{ opacity: 0, y: 20, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -330,10 +344,10 @@ export default function Diagnose() {
                       </div>
                       <div className="flex items-center gap-2 mt-1.5">
                         <span className="font-mono font-semibold text-sm text-foreground tabular-nums">
-                          {isKorean ? `₩${diagnosed.price.toLocaleString()}` : `$${diagnosed.price.toLocaleString()}`}
+                          {isKorean ? `₩${lastClose.toLocaleString()}` : `$${lastClose.toLocaleString()}`}
                         </span>
-                        <span className={`text-xs font-mono tabular-nums ${diagnosed.changePct >= 0 ? "gain-text" : "loss-text"}`}>
-                          {diagnosed.changePct >= 0 ? "+" : ""}{diagnosed.changePct.toFixed(2)}%
+                        <span className={`text-xs font-mono tabular-nums ${changePct >= 0 ? "gain-text" : "loss-text"}`}>
+                          {changePct >= 0 ? "+" : ""}{changePct.toFixed(2)}%
                         </span>
                       </div>
                     </div>
@@ -373,7 +387,7 @@ export default function Diagnose() {
                       <p className="text-sm text-muted-foreground leading-relaxed">
                         AI 종합 점수{" "}
                         <span className="font-bold font-mono" style={{ color: scoreColor }}>
-                          {diagnosed.prediction}점
+                          {score}점
                         </span>
                         으로 <span className="font-bold" style={{ color: scoreColor }}>{gradeLabel}</span>{" "}
                         등급입니다. 기술적·펀더멘털·감성 지표를 종합 분석한 결과입니다.
@@ -394,10 +408,10 @@ export default function Diagnose() {
 
                   {/* Key metrics row */}
                   <div className="grid grid-cols-3 gap-3 mb-5">
-                    {[
-                      { icon: Activity, label: "변동률", value: `${diagnosed.changePct >= 0 ? "+" : ""}${diagnosed.changePct.toFixed(2)}%`, color: diagnosed.changePct >= 0 ? "gain-text" : "loss-text" },
-                      { icon: BarChart2, label: "AI 점수", value: `${diagnosed.prediction}pt`, color: "" },
-                      { icon: Brain, label: "신호", value: getSignalLabel(diagnosed.signal), color: "" },
+                      {[
+                      { icon: Activity, label: "변동률", value: `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`, color: changePct >= 0 ? "gain-text" : "loss-text" },
+                      { icon: BarChart2, label: "AI 점수", value: `${score}pt`, color: "" },
+                      { icon: Brain, label: "신호", value: getSignalLabel(signal), color: "" },
                     ].map(({ icon: Icon, label, value, color }) => (
                       <div key={label} className="glass rounded-xl p-3 text-center">
                         <Icon className="w-4 h-4 text-primary mx-auto mb-1.5" />
@@ -428,11 +442,20 @@ export default function Diagnose() {
 
                 {/* Try another */}
                 <button
-                  onClick={() => { setDiagnosed(null); setQuery(""); }}
+                  onClick={() => { setDiagnosedSymbol(null); setQuery(""); }}
                   className="w-full mt-3 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors text-center"
                 >
                   다른 종목 진단하기 →
                 </button>
+              </motion.div>
+            )}
+            {diagnosed && !isLoading && (!bundle?.prediction || lastClose === undefined || isError) && (
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className="glass-card rounded-2xl p-6 border border-border text-center text-sm text-muted-foreground"
+              >
+                진단 데이터를 아직 불러오지 못했어. 잠시 후 다시 시도해줘.
               </motion.div>
             )}
           </AnimatePresence>

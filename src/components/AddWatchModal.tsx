@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { X, Search } from "lucide-react";
-import { STOCKS } from "@/data/stockData";
+import { STOCK_UNIVERSE } from "@/data/stockUniverse";
 import { useWatchlist } from "@/hooks/useWatchlist";
 
 interface Props { onClose: () => void; }
@@ -14,7 +14,7 @@ export function AddWatchModal({ onClose }: Props) {
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return STOCKS.filter(
+    return STOCK_UNIVERSE.filter(
       (stock) =>
         stock.symbol.toLowerCase().includes(normalizedQuery) ||
         stock.name.toLowerCase().includes(normalizedQuery)
@@ -60,7 +60,6 @@ export function AddWatchModal({ onClose }: Props) {
         <div className="space-y-1 max-h-64 overflow-y-auto">
           {filtered.map((stock) => {
             const watched = isWatched(stock.symbol);
-            const isGain = stock.changePct >= 0;
             return (
               <div key={stock.symbol} className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-secondary/50 transition-colors">
                 <div className="flex items-center gap-2.5">
@@ -73,9 +72,7 @@ export function AddWatchModal({ onClose }: Props) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-mono ${isGain ? "text-gain" : "text-loss"}`}>
-                    {isGain ? "+" : ""}{stock.changePct.toFixed(2)}%
-                  </span>
+                  <span className="text-[11px] text-muted-foreground">{stock.sector}</span>
                   <button
                     onClick={() => !watched && handleAdd(stock.symbol)}
                     disabled={watched || adding === stock.symbol}

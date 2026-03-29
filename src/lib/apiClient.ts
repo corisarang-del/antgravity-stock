@@ -95,6 +95,25 @@ interface IpoCalendarResponse {
   items: BackendIpoItem[];
 }
 
+export interface SentimentSummary {
+  symbol: string;
+  avg_score: number;
+  label: "positive" | "neutral" | "negative";
+  summary: string;
+  post_count: number;
+  positive_count: number;
+  neutral_count: number;
+  negative_count: number;
+  investor_sentiment: {
+    individual: number;
+    foreign: number;
+    institution: number;
+  };
+  fear_greed_index: number;
+  market_temperature: string;
+  history: number[];
+}
+
 export interface DashboardWatchItem {
   id: string;
   symbol: string;
@@ -183,9 +202,9 @@ export async function fetchIpoDetail(id: string): Promise<BackendIpoItem> {
   return apiFetch<BackendIpoItem>(`/api/tips/ipo/${encodeURIComponent(id)}`);
 }
 
-export async function fetchSentiment(symbol: string): Promise<unknown> {
+export async function fetchSentiment(symbol: string): Promise<SentimentSummary> {
   const backendSymbol = toBackendSymbol(symbol);
-  return apiFetch(`/api/sentiment/summary/${encodeURIComponent(backendSymbol)}`);
+  return apiFetch<SentimentSummary>(`/api/sentiment/summary/${encodeURIComponent(backendSymbol)}`);
 }
 
 export async function fetchPrediction(symbol: string): Promise<Prediction> {

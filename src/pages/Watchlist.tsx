@@ -5,14 +5,11 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/useAuth";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { useSubscription } from "@/hooks/useSubscription";
-import { STOCKS } from "@/data/stockData";
 import { AuthModal } from "@/components/AuthModal";
 import { UserMenu } from "@/components/UserMenu";
 import { AddWatchModal } from "@/components/AddWatchModal";
 import { PricingModal } from "@/components/PricingModal";
 import { FREE_LIMITS } from "@/config/toss";
-
-const STOCK_BY_SYMBOL = new Map(STOCKS.map((stock) => [stock.symbol, stock]));
 
 const Watchlist = () => {
   const { user, loading: authLoading } = useAuth();
@@ -176,8 +173,6 @@ const Watchlist = () => {
                 </div>
                 <AnimatePresence>
                   {filtered.map((item, idx) => {
-                    const stock = STOCK_BY_SYMBOL.get(item.symbol);
-                    const isGain = stock ? stock.changePct >= 0 : false;
                     return (
                       <motion.div
                         key={item.id}
@@ -201,18 +196,9 @@ const Watchlist = () => {
                           <div className="text-xs text-muted-foreground truncate">{item.name}</div>
                         </div>
 
-                        {/* Price */}
-                        {stock ? (
-                          <div className="text-right shrink-0">
-                            <div className="font-mono font-bold text-sm text-foreground">{stock.price.toLocaleString()}</div>
-                            <div className={`text-xs font-mono flex items-center gap-0.5 justify-end mt-0.5 ${isGain ? "text-gain" : "text-loss"}`}>
-                              {isGain ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                              {isGain ? "+" : ""}{stock.changePct.toFixed(2)}%
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-xs text-muted-foreground shrink-0">데이터 없음</div>
-                        )}
+                        <div className="text-xs text-muted-foreground shrink-0 hidden sm:block">
+                          저장일 {new Date(item.addedAt).toLocaleDateString("ko-KR")}
+                        </div>
 
                         {/* Actions */}
                         <div className="flex items-center gap-1 shrink-0">

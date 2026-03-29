@@ -1,16 +1,14 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Brain, ChevronRight } from "lucide-react";
-import { STOCKS } from "@/data/stockData";
+import { STOCK_UNIVERSE, getStockMetadata } from "@/data/stockUniverse";
 import { MarketTicker } from "@/components/MarketOverview";
 import { StockDetailPanel } from "@/components/StockDetailPanel";
-
-const STOCK_MAP = new Map(STOCKS.map((s) => [s.symbol, s]));
 
 export default function StockDetail() {
   const { symbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
-
-  const stock = (symbol ? STOCK_MAP.get(symbol) : undefined) ?? STOCKS[0];
+  const selectedSymbol = symbol ?? STOCK_UNIVERSE[0]?.symbol ?? "NVDA";
+  const stock = getStockMetadata(selectedSymbol) ?? STOCK_UNIVERSE[0];
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -32,7 +30,7 @@ export default function StockDetail() {
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>홈</span>
           <ChevronRight className="w-3 h-3" aria-hidden="true" />
-          <span className="text-foreground font-semibold">{stock.symbol}</span>
+          <span className="text-foreground font-semibold">{selectedSymbol}</span>
         </div>
       </header>
 
@@ -40,7 +38,7 @@ export default function StockDetail() {
 
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
-          <StockDetailPanel symbol={stock.symbol} />
+          <StockDetailPanel symbol={selectedSymbol} />
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown } from "lucide-react";
-import { INDICES } from "@/data/stockData";
+import { MARKET_INDEX_FALLBACKS } from "@/data/stockUniverse";
 import { useMarketTicker } from "@/hooks/useMarketTicker";
 
 function formatPrice(price: number): string {
@@ -22,7 +22,7 @@ export function MarketTicker() {
         change: formatRate(t.change_rate),
         up: t.change_rate >= 0,
       }))
-    : INDICES;
+    : MARKET_INDEX_FALLBACKS;
 
   const doubled = [...items, ...items];
 
@@ -65,7 +65,7 @@ export function MarketOverview() {
         change: formatRate(t.change_rate),
         up: t.change_rate >= 0,
       }))
-    : INDICES;
+    : MARKET_INDEX_FALLBACKS;
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
