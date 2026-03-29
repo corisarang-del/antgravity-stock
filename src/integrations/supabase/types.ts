@@ -53,6 +53,54 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_attempts: {
+        Row: {
+          amount: number | null
+          auth_key: string | null
+          created_at: string
+          flow: string
+          id: string
+          metadata: Json
+          order_id: string | null
+          provider: string
+          status: string
+          toss_code: string | null
+          toss_customer_key: string | null
+          toss_message: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          auth_key?: string | null
+          created_at?: string
+          flow: string
+          id?: string
+          metadata?: Json
+          order_id?: string | null
+          provider?: string
+          status: string
+          toss_code?: string | null
+          toss_customer_key?: string | null
+          toss_message?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          auth_key?: string | null
+          created_at?: string
+          flow?: string
+          id?: string
+          metadata?: Json
+          order_id?: string | null
+          provider?: string
+          status?: string
+          toss_code?: string | null
+          toss_customer_key?: string | null
+          toss_message?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       price_alerts: {
         Row: {
           alert_type: string
@@ -123,6 +171,10 @@ export type Database = {
           current_period_end: string | null
           current_period_start: string | null
           id: string
+          latest_payment_at: string | null
+          latest_payment_code: string | null
+          latest_payment_message: string | null
+          latest_payment_status: string
           plan: string
           status: string
           toss_billing_key: string | null
@@ -137,6 +189,10 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string | null
           id?: string
+          latest_payment_at?: string | null
+          latest_payment_code?: string | null
+          latest_payment_message?: string | null
+          latest_payment_status?: string
           plan?: string
           status?: string
           toss_billing_key?: string | null
@@ -151,6 +207,10 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string | null
           id?: string
+          latest_payment_at?: string | null
+          latest_payment_code?: string | null
+          latest_payment_message?: string | null
+          latest_payment_status?: string
           plan?: string
           status?: string
           toss_billing_key?: string | null

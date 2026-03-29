@@ -108,6 +108,10 @@ def _warmup_sync_caches() -> None:
         _warmup_caches()
         logger.info("[startup] background warmup local phase done")
 
+        if not settings.supabase_admin_enabled:
+            logger.info("[startup] supabase warmup skipped - SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing")
+            return
+
         logger.info("[startup] supabase warmup phase start")
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

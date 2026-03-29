@@ -1,17 +1,40 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  X, Zap, Check, Star, Brain, Bell, Wallet, Crown, Loader2,
-} from "lucide-react";
-import { useAuth } from "@/contexts/useAuth";
-import { useSubscription } from "@/hooks/useSubscription";
-import { TOSS_PLAN } from "@/config/toss";
+import { AnimatePresence, motion } from "framer-motion";
+import { Bell, Brain, Check, Crown, Loader2, Star, Wallet, X, Zap } from "lucide-react";
+
 import { AuthModal } from "@/components/AuthModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useAuth } from "@/contexts/useAuth";
+import { recordPaymentAttempt } from "@/lib/paymentAttempts";
 import { startSubscriptionCheckout } from "@/lib/tossBilling";
+import { useSubscription } from "@/hooks/useSubscription";
 
 interface Props {
   onClose: () => void;
 }
+
+const freeFeatures = [
+  "관심종목 최대 5개",
+  "가격 알림 최대 2개",
+  "주가 차트 조회",
+  "글로벌 시장 요약",
+];
+
+const proFeatures = [
+  { icon: Star, label: "관심종목 무제한" },
+  { icon: Bell, label: "가격 알림 무제한" },
+  { icon: Wallet, label: "포트폴리오 관리" },
+  { icon: Brain, label: "AI 상세 분석" },
+];
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) {
@@ -20,60 +43,72 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-const FREE_FEATURES = [
-  "관심종목 최대 5개",
-  "가격 알림 최대 2개",
-  "주가 차트 조회",
-  "글로벌 시장 현황",
-];
-
-const PRO_FEATURES = [
-  { icon: Star, label: "관심종목 무제한" },
-  { icon: Bell, label: "가격 알림 무제한" },
-  { icon: Wallet, label: "포트폴리오 클라우드 저장" },
-  { icon: Brain, label: "AI 예측 분석 무제한" },
-];
+function formatPeriodEnd(value: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(date);
+}
 
 export function PricingModal({ onClose }: Props) {
   const { user, session } = useAuth();
-  const { isPro, confirmPayment, cancelSubscription, subscription } = useSubscription();
+  const { isPro, cancelSubscription, subscription } = useSubscription();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAuth, setShowAuth] = useState(false);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+
+  const currentPeriodEndLabel = formatPeriodEnd(subscription?.currentPeriodEnd ?? null);
 
   const handleSubscribe = async () => {
     if (!user || !session) {
       setShowAuth(true);
       return;
     }
+
     setLoading(true);
     setError(null);
 
     try {
       await startSubscriptionCheckout(user);
-    } catch (e: unknown) {
-      // 사용자가 취소한 경우
+    } catch (error) {
       const userCancel =
-        typeof e === "object" &&
-        e !== null &&
-        "code" in e &&
-        e.code === "USER_CANCEL";
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "USER_CANCEL";
 
       if (userCancel) {
-        setError(null);
+        await recordPaymentAttempt({
+          status: "cancelled_by_user",
+          flow: "billing_auth_client",
+          message: "사용자가 결제창에서 취소함",
+          metadata: {
+            source: "pricing_modal",
+          },
+        }).catch(() => {});
       } else {
-        setError(getErrorMessage(e, "결제 창을 열지 못했습니다. 토스페이먼츠 키를 확인해주세요."));
+        setError(getErrorMessage(error, "결제창을 열지 못했다."));
       }
+
       setLoading(false);
     }
   };
 
   const handleCancel = async () => {
     setLoading(true);
+    setError(null);
+
     const { success } = await cancelSubscription();
-    if (!success) setError("구독 취소에 실패했습니다.");
-    setShowCancelConfirm(false);
+    if (!success) {
+      setError("구독 취소에 실패했다.");
+    }
+
+    setShowCancelDialog(false);
     setLoading(false);
   };
 
@@ -84,7 +119,7 @@ export function PricingModal({ onClose }: Props) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
-        onClick={(e) => e.target === e.currentTarget && onClose()}
+        onClick={(event) => event.target === event.currentTarget && onClose()}
       >
         <motion.div
           initial={{ scale: 0.93, opacity: 0, y: 24 }}
@@ -93,7 +128,6 @@ export function PricingModal({ onClose }: Props) {
           transition={{ type: "spring", stiffness: 280, damping: 24 }}
           className="glass rounded-2xl p-6 w-full max-w-lg border border-border shadow-2xl"
         >
-          {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
@@ -101,7 +135,7 @@ export function PricingModal({ onClose }: Props) {
               </div>
               <div>
                 <div className="font-bold gradient-text-primary">AntGravity Pro</div>
-                <div className="text-xs text-muted-foreground">월 ₩4,900 · 언제든 취소 가능</div>
+                <div className="text-xs text-muted-foreground">월 ₩4,900, 언제든 취소 가능</div>
               </div>
             </div>
             <button
@@ -112,23 +146,20 @@ export function PricingModal({ onClose }: Props) {
             </button>
           </div>
 
-          {/* Plans */}
           <div className="grid grid-cols-2 gap-3 mb-5">
-            {/* Free */}
             <div className="rounded-xl border border-border bg-secondary/30 p-4">
               <div className="text-sm font-semibold mb-1">Free</div>
               <div className="text-2xl font-bold font-mono mb-3">₩0</div>
               <ul className="space-y-2">
-                {FREE_FEATURES.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground">
+                {freeFeatures.map((feature) => (
+                  <li key={feature} className="flex items-start gap-2 text-xs text-muted-foreground">
                     <Check className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-foreground/50" />
-                    {f}
+                    {feature}
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* Pro */}
             <div className="rounded-xl border border-primary/40 bg-primary/5 p-4 relative overflow-hidden">
               <div className="absolute top-0 right-0 px-2 py-0.5 bg-primary text-primary-foreground text-[10px] font-bold rounded-bl-lg">
                 추천
@@ -138,7 +169,7 @@ export function PricingModal({ onClose }: Props) {
                 ₩4,900<span className="text-sm font-normal text-muted-foreground">/월</span>
               </div>
               <ul className="space-y-2">
-                {PRO_FEATURES.map(({ icon: Icon, label }) => (
+                {proFeatures.map(({ icon: Icon, label }) => (
                   <li key={label} className="flex items-start gap-2 text-xs">
                     <Icon className="w-3.5 h-3.5 shrink-0 mt-0.5 text-primary" />
                     <span>{label}</span>
@@ -148,7 +179,6 @@ export function PricingModal({ onClose }: Props) {
             </div>
           </div>
 
-          {/* Error */}
           <AnimatePresence>
             {error && (
               <motion.div
@@ -163,42 +193,30 @@ export function PricingModal({ onClose }: Props) {
             )}
           </AnimatePresence>
 
-          {/* Action */}
           {isPro ? (
             <div className="space-y-2">
               <div className="w-full py-2.5 rounded-lg bg-gain/10 border border-gain/20 text-gain text-sm font-semibold text-center flex items-center justify-center gap-2">
-                <Check className="w-4 h-4" /> AntGravity Pro 구독 중
+                <Check className="w-4 h-4" />
+                AntGravity Pro 구독 중
               </div>
+
               {subscription?.status === "cancelled" ? (
                 <p className="text-xs text-center text-muted-foreground">
-                  구독이 취소되었습니다. 현재 기간 만료 후 Free로 전환됩니다.
+                  구독은 취소됐고
+                  {currentPeriodEndLabel ? ` ${currentPeriodEndLabel}까지` : " 현재 결제 주기 종료 전까지"} Pro 권한은 유지된다.
                 </p>
               ) : (
                 <>
-                  {showCancelConfirm ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleCancel}
-                        disabled={loading}
-                        className="flex-1 py-2 rounded-lg bg-loss text-white text-xs font-semibold hover:bg-loss/90 transition-colors disabled:opacity-50"
-                      >
-                        {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" /> : "확인 취소"}
-                      </button>
-                      <button
-                        onClick={() => setShowCancelConfirm(false)}
-                        className="flex-1 py-2 rounded-lg bg-secondary text-xs font-semibold hover:bg-secondary/80 transition-colors"
-                      >
-                        아니오
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowCancelConfirm(true)}
-                      className="w-full py-2 rounded-lg border border-border text-muted-foreground text-xs hover:bg-secondary transition-colors"
-                    >
-                      구독 취소
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setShowCancelDialog(true)}
+                    className="w-full py-2 rounded-lg border border-border text-muted-foreground text-xs hover:bg-secondary transition-colors"
+                  >
+                    구독 취소
+                  </button>
+                  <p className="text-xs text-center text-muted-foreground">
+                    취소하면 billing key는 즉시 삭제되고
+                    {currentPeriodEndLabel ? ` ${currentPeriodEndLabel}까지` : " 현재 결제 주기 종료 전까지"}는 계속 사용할 수 있다.
+                  </p>
                 </>
               )}
             </div>
@@ -213,22 +231,45 @@ export function PricingModal({ onClose }: Props) {
               ) : (
                 <>
                   <Zap className="w-4 h-4" />
-                  Pro 시작하기 · 월 ₩4,900
+                  Pro 시작하기, 월 ₩4,900
                 </>
               )}
             </button>
           )}
 
           <p className="text-center text-xs text-muted-foreground mt-3">
-            토스페이먼츠 테스트 결제로 안전하게 확인 가능 · 언제든 취소 가능
+            토스페이먼츠 테스트 결제로 안전하게 확인 가능, 언제든 취소 가능
           </p>
         </motion.div>
       </motion.div>
 
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>정말 구독을 취소할까?</AlertDialogTitle>
+            <AlertDialogDescription>
+              취소하면 저장된 billing key는 즉시 삭제되고 다음 자동결제는 진행되지 않는다.
+              {currentPeriodEndLabel ? ` 다만 ${currentPeriodEndLabel}까지는 Pro 권한을 계속 사용할 수 있다.` : " 다만 현재 결제 주기 종료 전까지는 Pro 권한을 계속 사용할 수 있다."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>돌아가기</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void handleCancel();
+              }}
+              disabled={loading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {loading ? "취소 처리 중..." : "구독 취소하기"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AnimatePresence>
-        {showAuth && (
-          <AuthModal onClose={() => setShowAuth(false)} />
-        )}
+        {showAuth ? <AuthModal onClose={() => setShowAuth(false)} /> : null}
       </AnimatePresence>
     </>
   );

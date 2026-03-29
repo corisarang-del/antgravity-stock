@@ -16,6 +16,7 @@ from typing import Any
 import httpx
 import yfinance as yf
 
+from core.config import settings
 from core.supabase_client import get_supabase
 from data.pipeline import TICKERS
 from services.financials_cache_service import read_all_fundamentals
@@ -117,6 +118,10 @@ def _load_from_supabase() -> list[dict] | None:
 
     반환: [{symbol, name, market, sector, change_pct, market_cap}, ...] 또는 None(실패)
     """
+    if not settings.supabase_admin_enabled:
+        logger.info("Supabase admin env missing -- sector Supabase load skipped")
+        return None
+
     try:
         client = get_supabase()
 
@@ -392,6 +397,10 @@ def _persist_sectors_to_db() -> int:
     Returns: 업데이트된 행 수
     """
     if not _SYMBOL_SECTOR_CACHE:
+        return 0
+
+    if not settings.supabase_admin_enabled:
+        logger.info("[sectors] Supabase admin env missing -- DB sector persist skipped")
         return 0
 
     try:

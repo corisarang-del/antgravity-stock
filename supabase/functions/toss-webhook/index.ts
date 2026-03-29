@@ -1,10 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 import {
   buildCorsHeaders,
   enforceWebhookReplayProtection,
   getErrorMessage,
 } from "../_shared/security.ts";
+import { addOneMonth } from "../_shared/toss_billing.ts";
 
 const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY") ?? "";
 
@@ -21,11 +23,12 @@ serve(async (req) => {
     const replayKey =
       transmissionId ??
       `${eventType}:${data?.paymentKey ?? data?.customerKey ?? "unknown"}:${data?.status ?? "unknown"}`;
+
     enforceWebhookReplayProtection(replayKey, 300);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      SERVICE_ROLE_KEY
+      SERVICE_ROLE_KEY,
     );
 
     if (!SERVICE_ROLE_KEY) {
@@ -42,7 +45,6 @@ serve(async (req) => {
       });
     }
 
-    // 정기결제 성공
     if (data?.status === "DONE") {
       const customerKey = data?.customerKey;
       if (!customerKey) {
@@ -52,33 +54,44 @@ serve(async (req) => {
         });
       }
 
-      // customerKey = user_id 로 구독 갱신
       const periodStart = new Date();
-      const periodEnd = new Date();
-      periodEnd.setMonth(periodEnd.getMonth() + 1);
+      const periodEnd = addOneMonth(periodStart);
+      const latestPaymentAt = new Date().toISOString();
 
       await supabase
         .from("subscriptions")
         .update({
           plan: "pro",
           status: "active",
+          latest_payment_status: "success",
+          latest_payment_code: null,
+          latest_payment_message: null,
+          latest_payment_at: latestPaymentAt,
           current_period_start: periodStart.toISOString(),
           current_period_end: periodEnd.toISOString(),
-          updated_at: new Date().toISOString(),
+          updated_at: latestPaymentAt,
         })
         .eq("toss_customer_key", customerKey);
     }
 
-    // 결제 실패 / 취소
     if (data?.status === "CANCELED" || data?.status === "ABORTED") {
       const customerKey = data?.customerKey;
       if (customerKey) {
+        const latestPaymentAt = new Date().toISOString();
+        const latestPaymentStatus = data.status === "CANCELED"
+          ? "cancelled_by_user"
+          : "failed";
+
         await supabase
           .from("subscriptions")
           .update({
             status: "cancelled",
-            cancelled_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            cancelled_at: latestPaymentAt,
+            latest_payment_status: latestPaymentStatus,
+            latest_payment_code: data?.code ?? null,
+            latest_payment_message: data?.message ?? null,
+            latest_payment_at: latestPaymentAt,
+            updated_at: latestPaymentAt,
           })
           .eq("toss_customer_key", customerKey);
       }
@@ -88,8 +101,8 @@ serve(async (req) => {
       status: 200,
       headers: { ...cors.headers, "Content-Type": "application/json" },
     });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: getErrorMessage(e) }), {
+  } catch (error) {
+    return new Response(JSON.stringify({ error: getErrorMessage(error) }), {
       status: 500,
       headers: { ...cors.headers, "Content-Type": "application/json" },
     });

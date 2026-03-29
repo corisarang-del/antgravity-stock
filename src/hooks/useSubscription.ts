@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/useAuth";
-import type { Tables } from "@/integrations/supabase/types";
+import { useCallback, useEffect, useState } from "react";
+
 import { TOSS_PLAN } from "@/config/toss";
+import { useAuth } from "@/contexts/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 
 export interface Subscription {
   id: string;
@@ -10,6 +11,10 @@ export interface Subscription {
   status: "free" | "active" | "cancelled" | "expired";
   currentPeriodEnd: string | null;
   cancelledAt: string | null;
+  latestPaymentStatus: "idle" | "success" | "cancelled_by_user" | "failed";
+  latestPaymentCode: string | null;
+  latestPaymentMessage: string | null;
+  latestPaymentAt: string | null;
 }
 
 type SubscriptionRow = Tables<"subscriptions">;
@@ -31,7 +36,9 @@ export function useSubscription() {
       setSubscription(null);
       return;
     }
+
     setLoading(true);
+
     const { data, error } = await supabase
       .from("subscriptions")
       .select("*")
@@ -46,11 +53,25 @@ export function useSubscription() {
         status: row.status as Subscription["status"],
         currentPeriodEnd: row.current_period_end,
         cancelledAt: row.cancelled_at,
+        latestPaymentStatus: (row.latest_payment_status as Subscription["latestPaymentStatus"]) ?? "idle",
+        latestPaymentCode: row.latest_payment_code,
+        latestPaymentMessage: row.latest_payment_message,
+        latestPaymentAt: row.latest_payment_at,
       });
     } else if (!data) {
-      // 구독 row가 없으면 free로 설정
-      setSubscription({ id: "", plan: "free", status: "free", currentPeriodEnd: null, cancelledAt: null });
+      setSubscription({
+        id: "",
+        plan: "free",
+        status: "free",
+        currentPeriodEnd: null,
+        cancelledAt: null,
+        latestPaymentStatus: "idle",
+        latestPaymentCode: null,
+        latestPaymentMessage: null,
+        latestPaymentAt: null,
+      });
     }
+
     setLoading(false);
   }, [user]);
 
@@ -66,7 +87,9 @@ export function useSubscription() {
     );
 
   const confirmPayment = useCallback(async (authKey: string, customerKey: string) => {
-    if (!session) return { success: false, error: "로그인이 필요합니다." };
+    if (!session) {
+      return { success: false, error: "로그인이 필요합니다." };
+    }
 
     const { data, error } = await supabase.functions.invoke("toss-confirm-payment", {
       body: {
@@ -85,20 +108,24 @@ export function useSubscription() {
       await fetchSubscription();
       return { success: true };
     }
+
     return { success: false, error: error?.message ?? data?.error ?? "결제 실패" };
   }, [fetchSubscription, session, user]);
 
   const cancelSubscription = useCallback(async () => {
     if (!session) return { success: false };
+
     const { data, error } = await supabase.functions.invoke("toss-cancel-subscription", {
       headers: {
         Authorization: `Bearer ${session.access_token}`,
       },
     });
+
     if (!error && data?.success) {
       await fetchSubscription();
       return { success: true };
     }
+
     return { success: false };
   }, [fetchSubscription, session]);
 

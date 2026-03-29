@@ -60,6 +60,10 @@ class Settings(BaseSettings):
             return self.APP_ENV != "production"
         return self.STARTUP_WARMUP_ENABLED
 
+    @property
+    def supabase_admin_enabled(self) -> bool:
+        return bool(self.SUPABASE_URL and self.SUPABASE_SERVICE_ROLE_KEY)
+
     # 캐싱 설정 (API 비용 절감 핵심!)
     DIARY_CACHE_HOURS: int = 24       # Gemini 호출: 하루 1회만
     SENTIMENT_CACHE_MINUTES: int = 30  # 감성 분석: 30분 캐싱

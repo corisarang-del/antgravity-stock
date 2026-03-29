@@ -5,9 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:frontend": "vite --host 0.0.0.0 --port 8080",
+    "dev:backend": "python scripts/dev/run_backend.py",
+    "dev:backend:reload": "python scripts/dev/run_backend.py --reload",
+    "dev:backend:window": "cmd /c start \"AntGravity Backend\" cmd /k scripts\\dev\\start-backend.cmd",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

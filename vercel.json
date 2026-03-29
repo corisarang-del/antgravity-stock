@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron/toss-billing",
+      "schedule": "0 9 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/((?!api/).*)",

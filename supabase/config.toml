@@ -1,5 +1,14 @@
 project_id = "rprevepnzsjfqofdcsyu"
 
+[auth]
+site_url = "https://antgravity-stock.vercel.app"
+additional_redirect_urls = [
+  "https://antgravity-stock.vercel.app/**",
+  "https://*-todocori.vercel.app/**",
+  "http://localhost:8080/**",
+  "http://127.0.0.1:8080/**",
+]
+
 [functions.dart-ipo]
 verify_jwt = false
 
@@ -10,4 +19,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.toss-webhook]
+verify_jwt = false
+
+[functions.toss-charge-due-subscriptions]
+verify_jwt = false
+
+[functions.toss-log-payment-attempt]
 verify_jwt = false

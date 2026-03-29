@@ -1,10 +1,65 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildCorsHeaders, enforceRateLimit, ensureAllowedOrigin, getClientIp, getErrorMessage } from "../_shared/security.ts";
+
+import {
+  buildCorsHeaders,
+  enforceRateLimit,
+  ensureAllowedOrigin,
+  getClientIp,
+  getErrorMessage,
+} from "../_shared/security.ts";
+import {
+  addOneMonth,
+  chargeBillingKey,
+  getBillingAmount,
+  getBillingOrderName,
+  issueBillingKey,
+} from "../_shared/toss_billing.ts";
 
 const TOSS_SECRET_KEY = Deno.env.get("TOSS_SECRET_KEY") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY") ?? "";
-const TOSS_API_BASE = "https://api.tosspayments.com/v1";
+
+async function recordPaymentAttempt(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    userId: string;
+    status: "success" | "failed";
+    orderId: string | null;
+    authKey: string | null;
+    customerKey: string | null;
+    amount: number;
+    code?: string | null;
+    message?: string | null;
+    metadata?: Record<string, unknown>;
+  },
+) {
+  const now = new Date().toISOString();
+
+  await supabase.from("payment_attempts").insert({
+    user_id: input.userId,
+    provider: "toss",
+    flow: "billing_auth",
+    status: input.status,
+    order_id: input.orderId,
+    auth_key: input.authKey,
+    toss_customer_key: input.customerKey,
+    toss_code: input.code ?? null,
+    toss_message: input.message ?? null,
+    amount: input.amount,
+    metadata: input.metadata ?? {},
+  });
+
+  await supabase
+    .from("subscriptions")
+    .update({
+      latest_payment_status: input.status,
+      latest_payment_code: input.code ?? null,
+      latest_payment_message: input.message ?? null,
+      latest_payment_at: now,
+      updated_at: now,
+    })
+    .eq("user_id", input.userId);
+}
 
 serve(async (req) => {
   const cors = buildCorsHeaders(req);
@@ -18,7 +73,6 @@ serve(async (req) => {
   try {
     enforceRateLimit(`${getClientIp(req)}:toss-confirm`, 10, 60);
 
-    // JWT로 유저 인증
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -29,10 +83,9 @@ serve(async (req) => {
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      SERVICE_ROLE_KEY
+      SERVICE_ROLE_KEY,
     );
 
-    // 토큰으로 유저 조회
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
@@ -43,8 +96,20 @@ serve(async (req) => {
     }
 
     const { authKey, customerKey, amount, orderId, orderName } = await req.json();
+    const billingAmount = amount ?? getBillingAmount();
+    const chargeOrderId = orderId ?? `stockai_pro_${user.id}_${Date.now()}`;
 
     if (!authKey || !customerKey) {
+      await recordPaymentAttempt(supabase, {
+        userId: user.id,
+        status: "failed",
+        orderId: chargeOrderId,
+        authKey: authKey ?? null,
+        customerKey: customerKey ?? null,
+        amount: billingAmount,
+        message: "authKey and customerKey are required",
+      });
+
       return new Response(JSON.stringify({ error: "authKey and customerKey are required" }), {
         status: 400,
         headers: { ...cors.headers, "Content-Type": "application/json" },
@@ -65,82 +130,113 @@ serve(async (req) => {
       });
     }
 
-    // 1단계: 빌링키 발급 (authKey → billingKey)
-    const basicToken = btoa(TOSS_SECRET_KEY + ":");
-    const billingAuthRes = await fetch(
-      `${TOSS_API_BASE}/billing/authorizations/${authKey}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${basicToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ customerKey }),
-      }
-    );
-
-    const billingAuthData = await billingAuthRes.json();
-
-    if (!billingAuthRes.ok) {
-      return new Response(
-        JSON.stringify({ error: billingAuthData.message ?? "빌링키 발급 실패" }),
-        { status: 400, headers: { ...cors.headers, "Content-Type": "application/json" } }
-      );
-    }
-
-    const billingKey = billingAuthData.billingKey;
-
-    // 2단계: 첫 번째 정기결제 실행
-    const chargeOrderId = orderId ?? `stockai_pro_${user.id}_${Date.now()}`;
-    const chargeRes = await fetch(`${TOSS_API_BASE}/billing/${billingKey}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${basicToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        customerKey,
-        amount: amount ?? 4900,
-        orderId: chargeOrderId,
-        orderName: orderName ?? "StockAI Pro 월정액",
-        customerEmail: user.email,
-        customerName: user.user_metadata?.full_name ?? user.email,
-      }),
+    const billingAuth = await issueBillingKey({
+      secretKey: TOSS_SECRET_KEY,
+      authKey,
+      customerKey,
     });
 
-    const chargeData = await chargeRes.json();
+    if (!billingAuth.ok) {
+      await recordPaymentAttempt(supabase, {
+        userId: user.id,
+        status: "failed",
+        orderId: chargeOrderId,
+        authKey,
+        customerKey,
+        amount: billingAmount,
+        code: billingAuth.data.code ?? null,
+        message: billingAuth.data.message ?? "빌링키 발급 실패",
+        metadata: {
+          stage: "issue_billing_key",
+        },
+      });
 
-    if (!chargeRes.ok) {
       return new Response(
-        JSON.stringify({ error: chargeData.message ?? "결제 실패" }),
-        { status: 400, headers: { ...cors.headers, "Content-Type": "application/json" } }
+        JSON.stringify({ error: billingAuth.data.message ?? "빌링키 발급 실패" }),
+        { status: 400, headers: { ...cors.headers, "Content-Type": "application/json" } },
       );
     }
 
-    // 3단계: DB 구독 상태 업데이트
+    const billingKey = billingAuth.data.billingKey;
+
+    const charge = await chargeBillingKey({
+      secretKey: TOSS_SECRET_KEY,
+      input: {
+        billingKey,
+        customerKey,
+        amount: billingAmount,
+        orderId: chargeOrderId,
+        orderName: orderName ?? getBillingOrderName(),
+        customerEmail: user.email,
+        customerName: user.user_metadata?.full_name ?? user.email,
+      },
+    });
+
+    if (!charge.ok) {
+      await recordPaymentAttempt(supabase, {
+        userId: user.id,
+        status: "failed",
+        orderId: chargeOrderId,
+        authKey,
+        customerKey,
+        amount: billingAmount,
+        code: charge.data.code ?? null,
+        message: charge.data.message ?? "결제 실패",
+        metadata: {
+          stage: "charge_billing_key",
+        },
+      });
+
+      return new Response(
+        JSON.stringify({ error: charge.data.message ?? "결제 실패" }),
+        { status: 400, headers: { ...cors.headers, "Content-Type": "application/json" } },
+      );
+    }
+
     const periodStart = new Date();
-    const periodEnd = new Date();
-    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    const periodEnd = addOneMonth(periodStart);
+    const latestPaymentAt = new Date().toISOString();
 
     await supabase.from("subscriptions").upsert({
       user_id: user.id,
       plan: "pro",
       status: "active",
+      latest_payment_status: "success",
+      latest_payment_code: null,
+      latest_payment_message: null,
+      latest_payment_at: latestPaymentAt,
       toss_customer_key: customerKey,
       toss_billing_key: billingKey,
       toss_order_id: chargeOrderId,
       current_period_start: periodStart.toISOString(),
       current_period_end: periodEnd.toISOString(),
-      updated_at: new Date().toISOString(),
+      updated_at: latestPaymentAt,
     }, { onConflict: "user_id" });
 
-    return new Response(JSON.stringify({ success: true, payment: chargeData }), {
+    await recordPaymentAttempt(supabase, {
+      userId: user.id,
+      status: "success",
+      orderId: chargeOrderId,
+      authKey,
+      customerKey,
+      amount: billingAmount,
+      metadata: {
+        stage: "charge_billing_key",
+        paymentKey: charge.data.paymentKey ?? null,
+        approvedAt: charge.data.approvedAt ?? null,
+      },
+    });
+
+    return new Response(JSON.stringify({ success: true, payment: charge.data }), {
       status: 200,
       headers: { ...cors.headers, "Content-Type": "application/json" },
     });
-  } catch (e) {
-    const status = e instanceof Error && e.message === "RATE_LIMITED" ? 429 : 500;
-    const message = e instanceof Error && e.message === "RATE_LIMITED" ? "Too many requests" : getErrorMessage(e);
+  } catch (error) {
+    const status = error instanceof Error && error.message === "RATE_LIMITED" ? 429 : 500;
+    const message = error instanceof Error && error.message === "RATE_LIMITED"
+      ? "Too many requests"
+      : getErrorMessage(error);
+
     return new Response(JSON.stringify({ error: message }), {
       status,
       headers: { ...cors.headers, "Content-Type": "application/json" },

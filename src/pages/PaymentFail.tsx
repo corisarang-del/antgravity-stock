@@ -1,12 +1,40 @@
-import { useSearchParams, Link } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { XCircle, Brain } from "lucide-react";
+import { Brain, XCircle } from "lucide-react";
+
+import { useAuth } from "@/contexts/useAuth";
+import { recordPaymentAttempt } from "@/lib/paymentAttempts";
+import { classifyTossFailure } from "@/lib/tossPaymentStatus";
 
 const PaymentFail = () => {
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const loggedRef = useRef(false);
+
   const message = searchParams.get("message") ?? "결제가 취소되었습니다.";
   const code = searchParams.get("code");
   const debugParams = Object.fromEntries(searchParams.entries());
+  const paymentStatus = classifyTossFailure({ code, message });
+  const heading = paymentStatus === "cancelled_by_user" ? "결제 취소" : "결제 실패";
+
+  useEffect(() => {
+    if (!user || loggedRef.current) {
+      return;
+    }
+
+    loggedRef.current = true;
+
+    recordPaymentAttempt({
+      status: paymentStatus,
+      flow: "billing_auth_callback",
+      code,
+      message,
+      metadata: debugParams,
+    }).catch(() => {
+      // 결제 실패 화면은 로깅 실패와 무관하게 사용자에게 항상 보여준다.
+    });
+  }, [code, debugParams, message, paymentStatus, user]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
@@ -23,7 +51,7 @@ const PaymentFail = () => {
         </Link>
 
         <XCircle className="w-16 h-16 text-loss mx-auto mb-4" />
-        <h1 className="text-xl font-bold mb-2">결제 실패</h1>
+        <h1 className="text-xl font-bold mb-2">{heading}</h1>
         <p className="text-sm text-muted-foreground mb-1">{message}</p>
         {code && <p className="text-xs text-muted-foreground/60 font-mono mb-6">코드: {code}</p>}
 
