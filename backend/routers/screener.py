@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from api.dependencies import require_pro_access
 from services.screener_service import _STRATEGY_MAP, run_screener
 
 router = APIRouter()
@@ -22,7 +23,7 @@ class ScreenerRequest(BaseModel):
 
 
 @router.post("/screener")
-async def screener(req: ScreenerRequest):
+async def screener(req: ScreenerRequest, _access=Depends(require_pro_access)):
     """AI 스크리너: 11개 전략 필터로 종목 선별"""
     return run_screener(
         strategies=req.strategies,

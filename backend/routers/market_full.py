@@ -4,9 +4,10 @@ from __future__ import annotations
 import logging
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from api.dependencies import require_pro_access
 from core.supabase_client import get_supabase
 from data.pipeline import TICKERS as _PIPELINE_TICKERS
 from services.runtime_cache import TtlCache
@@ -177,6 +178,7 @@ async def market_full(
     limit: int = Query(default=100, ge=1, le=200),
     sort: Literal["market_cap", "change_pct", "per", "name"] = "market_cap",
     sector: str | None = None,
+    _access=Depends(require_pro_access),
 ):
     """전체 종목 시장 데이터 (페이지네이션)"""
     try:
@@ -211,6 +213,7 @@ async def market_full(
 @router.get("/full/search", response_model=SearchResponse)
 async def market_full_search(
     q: str = Query(..., min_length=1),
+    _access=Depends(require_pro_access),
 ):
     """종목 검색 (이름/심볼 ILIKE)"""
     try:

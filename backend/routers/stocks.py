@@ -6,8 +6,9 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 import yfinance as yf
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from api.dependencies import require_pro_access
 from core.config import settings
 from core.supabase_client import get_supabase
 from data.pipeline import TICKERS
@@ -144,7 +145,10 @@ async def get_stock(
 
 
 @router.get("/fundamentals/batch")
-async def get_fundamentals_batch(symbols: str = Query(..., description="콤마 구분 심볼 목록 (예: NVDA,005930.KS)")):
+async def get_fundamentals_batch(
+    symbols: str = Query(..., description="콤마 구분 심볼 목록 (예: NVDA,005930.KS)"),
+    _access=Depends(require_pro_access),
+):
     """여러 종목 재무지표를 한 번에 반환. 14개 종목 병렬 수집용."""
     symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
     valid = [s for s in symbol_list if s in TICKERS]
@@ -161,7 +165,7 @@ async def get_fundamentals_batch(symbols: str = Query(..., description="콤마 �
 
 
 @router.get("/{symbol}/fundamentals")
-async def get_stock_fundamentals(symbol: str):
+async def get_stock_fundamentals(symbol: str, _access=Depends(require_pro_access)):
     """재무지표 + Investment Score (30분 TTL 캐시)"""
     if symbol not in TICKERS:
         raise HTTPException(status_code=404, detail=f"지원하지 않는 종목: {symbol}")
@@ -172,7 +176,7 @@ async def get_stock_fundamentals(symbol: str):
 
 
 @router.get("/{symbol}/history")
-async def get_stock_history(symbol: str):
+async def get_stock_history(symbol: str, _access=Depends(require_pro_access)):
     """5개년 재무 히스토리 (24시간 TTL 캐시)"""
     if symbol not in TICKERS:
         raise HTTPException(status_code=404, detail=f"지원하지 않는 종목: {symbol}")

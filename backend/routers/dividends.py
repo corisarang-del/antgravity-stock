@@ -9,8 +9,9 @@ from datetime import datetime
 from typing import Any
 
 import yfinance as yf
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from api.dependencies import require_pro_access
 from core.supabase_client import get_supabase
 from data.pipeline import TICKERS
 from services.financials_cache_service import read_all_dividends
@@ -152,6 +153,7 @@ def _compute_dividend_calendar(year: int, month: int) -> dict[str, Any]:
 async def dividend_calendar(
     year: int = Query(default=2026),
     month: int = Query(default=3, ge=1, le=12),
+    _access=Depends(require_pro_access),
 ):
     """월별 배당 캘린더 (24시간 TTL 캐시)"""
     cache_key = f"{year}-{month:02d}"

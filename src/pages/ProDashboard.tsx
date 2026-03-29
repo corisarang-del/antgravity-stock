@@ -53,45 +53,6 @@ const TICKER_NAMES: Record<string, string> = Object.fromEntries(
   ALL_SYMBOLS.map((s) => [s, TICKERS[s].name])
 );
 
-function ProGate({ children }: { children: React.ReactNode }) {
-  const { isPro, loading } = useSubscription();
-
-  // 개발 환경에서는 Pro 게이트 우회 (빌드 시 dead code로 제거됨)
-  if (import.meta.env.DEV) return <>{children}</>;
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!isPro) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-5 px-4">
-        <div className="w-16 h-16 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center">
-          <Lock className="w-8 h-8 text-primary" />
-        </div>
-        <div className="text-center">
-          <h2 className="text-xl font-bold mb-2">Pro 전용 기능</h2>
-          <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-            Pro 대시보드는 구독 회원 전용입니다. 재무지표, AI 스크리너, 섹터 히트맵을 이용하려면 업그레이드하세요.
-          </p>
-        </div>
-        <Link
-          to="/upgrade"
-          className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
-        >
-          Pro 업그레이드
-        </Link>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
-}
-
 // 종목 서치 컴포넌트 — 2글자 이상 입력 시 전체 universe(13,830개) API 검색
 function TickerSearch({
   value,
@@ -184,7 +145,7 @@ function TickerSearch({
   );
 }
 
-export default function ProDashboard() {
+function ProDashboardContent() {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [selectedSymbol, setSelectedSymbol] = useState(ALL_SYMBOLS[0] ?? "NVDA");
 
@@ -210,9 +171,7 @@ export default function ProDashboard() {
   });
 
   return (
-    <AppShell hideTicker>
-      <ProGate>
-        <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
           {/* 헤더 */}
           <div className="glass rounded-2xl p-5 border border-border">
             <div className="flex items-center gap-3">
@@ -303,8 +262,47 @@ export default function ProDashboard() {
           )}
 
           {activeTab === "dividends" ? <DividendCalendar /> : null}
+    </div>
+  );
+}
+
+function ProAccessBlocked() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-5 px-4">
+      <div className="w-16 h-16 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center">
+        <Lock className="w-8 h-8 text-primary" />
+      </div>
+      <div className="text-center">
+        <h2 className="text-xl font-bold mb-2">Pro 전용 기능</h2>
+        <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+          Pro 대시보드는 구독 회원 전용이다. 재무지표, AI 스크리너, 섹터 히트맵을 이용하려면 업그레이드해야 한다.
+        </p>
+      </div>
+      <Link
+        to="/upgrade"
+        className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
+      >
+        Pro 업그레이드
+      </Link>
+    </div>
+  );
+}
+
+export default function ProDashboard() {
+  const { isPro, loading } = useSubscription();
+  const allowAccess = import.meta.env.DEV || isPro;
+
+  return (
+    <AppShell hideTicker>
+      {allowAccess ? (
+        <ProDashboardContent />
+      ) : loading ? (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
-      </ProGate>
+      ) : (
+        <ProAccessBlocked />
+      )}
     </AppShell>
   );
 }

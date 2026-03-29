@@ -29,11 +29,12 @@ function isFutureDate(value: string | null): boolean {
 export function useSubscription() {
   const { user, session } = useAuth();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const fetchSubscription = useCallback(async () => {
     if (!user) {
       setSubscription(null);
+      setLoading(false);
       return;
     }
 

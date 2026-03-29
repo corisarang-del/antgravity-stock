@@ -4,8 +4,9 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from api.dependencies import require_pro_access
 from services.sectors_service import get_sectors
 
 logger = logging.getLogger(__name__)
@@ -13,7 +14,7 @@ router = APIRouter()
 
 
 @router.get("/sectors")
-async def market_sectors():
+async def market_sectors(_access=Depends(require_pro_access)):
     """섹터별 히트맵 데이터 (5분 TTL 캐시)"""
     try:
         loop = asyncio.get_running_loop()

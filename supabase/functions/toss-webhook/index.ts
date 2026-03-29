@@ -5,10 +5,12 @@ import {
   buildCorsHeaders,
   enforceWebhookReplayProtection,
   getErrorMessage,
+  verifySharedSecret,
 } from "../_shared/security.ts";
 import { addOneMonth } from "../_shared/toss_billing.ts";
 
 const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY") ?? "";
+const TOSS_WEBHOOK_SECRET = Deno.env.get("TOSS_WEBHOOK_SECRET") ?? "";
 
 serve(async (req) => {
   const cors = buildCorsHeaders(req);
@@ -17,6 +19,8 @@ serve(async (req) => {
   }
 
   try {
+    verifySharedSecret(req, TOSS_WEBHOOK_SECRET);
+
     const body = await req.json();
     const { eventType, data } = body;
     const transmissionId = req.headers.get("tosspayments-webhook-transmission-id");
@@ -102,8 +106,17 @@ serve(async (req) => {
       headers: { ...cors.headers, "Content-Type": "application/json" },
     });
   } catch (error) {
+    const status =
+      error instanceof Error && error.message === "INVALID_WEBHOOK_SECRET"
+        ? 401
+        : error instanceof Error && error.message === "WEBHOOK_REPLAY_DETECTED"
+          ? 409
+          : error instanceof Error && error.message === "MISSING_WEBHOOK_SECRET"
+            ? 500
+            : 500;
+
     return new Response(JSON.stringify({ error: getErrorMessage(error) }), {
-      status: 500,
+      status,
       headers: { ...cors.headers, "Content-Type": "application/json" },
     });
   }
