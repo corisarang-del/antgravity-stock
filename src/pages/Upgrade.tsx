@@ -4,9 +4,8 @@ import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/contexts/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
-import { TOSS_CLIENT_KEY } from "@/config/toss";
 import { AuthModal } from "@/components/AuthModal";
-import { getSafeRedirectUrl } from "@/lib/authRedirect";
+import { startSubscriptionCheckout } from "@/lib/tossBilling";
 
 const FREE_FEATURES = [
   "관심종목 최대 5개",
@@ -41,16 +40,7 @@ const Upgrade = () => {
     if (!user || !session) { setShowAuth(true); return; }
     setLoading(true); setError(null);
     try {
-      const { loadTossPayments } = await import("@tosspayments/tosspayments-sdk");
-      const tossPayments = await loadTossPayments(TOSS_CLIENT_KEY);
-      const payment = tossPayments.payment({ customerKey: user.id });
-      await payment.requestBillingAuth({
-        method: "CARD",
-        successUrl: getSafeRedirectUrl("/payment/success"),
-        failUrl: getSafeRedirectUrl("/payment/fail"),
-        customerEmail: user.email ?? "",
-        customerName: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "고객",
-      });
+      await startSubscriptionCheckout(user);
     } catch (e: unknown) {
       const userCancel =
         typeof e === "object" &&
@@ -173,7 +163,7 @@ const Upgrade = () => {
           {isPro ? (
             <div className="space-y-3">
               <div className="w-full py-3 rounded-xl bg-gain/10 border border-gain/20 text-gain text-sm font-semibold text-center flex items-center justify-center gap-2">
-                <Check className="w-4 h-4" /> Pro 구독 중
+                  <Check className="w-4 h-4" /> AntGravity Pro 구독 중
               </div>
               {subscription?.status !== "cancelled" && (
                 showCancelConfirm ? (
@@ -212,7 +202,7 @@ const Upgrade = () => {
             </button>
           )}
           <p className="text-center text-xs text-muted-foreground mt-3">
-            토스페이먼츠로 안전하게 결제 · 언제든 취소 가능
+            토스페이먼츠 테스트 결제로 안전하게 확인 가능 · 언제든 취소 가능
           </p>
         </motion.div>
       </div>

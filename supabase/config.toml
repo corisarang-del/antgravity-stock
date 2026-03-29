@@ -1,4 +1,13 @@
-project_id = "qqtvmoxioxqxonuutxnf"
+project_id = "rprevepnzsjfqofdcsyu"
 
 [functions.dart-ipo]
+verify_jwt = false
+
+[functions.toss-confirm-payment]
+verify_jwt = false
+
+[functions.toss-cancel-subscription]
+verify_jwt = false
+
+[functions.toss-webhook]
 verify_jwt = false

@@ -5,9 +5,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
-import { TOSS_CLIENT_KEY, TOSS_PLAN } from "@/config/toss";
+import { TOSS_PLAN } from "@/config/toss";
 import { AuthModal } from "@/components/AuthModal";
-import { getSafeRedirectUrl } from "@/lib/authRedirect";
+import { startSubscriptionCheckout } from "@/lib/tossBilling";
 
 interface Props {
   onClose: () => void;
@@ -51,23 +51,7 @@ export function PricingModal({ onClose }: Props) {
     setError(null);
 
     try {
-      // 토스페이먼츠 빌링키 인증 요청
-      const { loadTossPayments } = await import("@tosspayments/tosspayments-sdk");
-      const tossPayments = await loadTossPayments(TOSS_CLIENT_KEY);
-      const payment = tossPayments.payment({ customerKey: user.id });
-
-      await payment.requestBillingAuth({
-        method: "CARD",
-        successUrl: getSafeRedirectUrl("/payment/success"),
-        failUrl: getSafeRedirectUrl("/payment/fail"),
-        customerEmail: user.email ?? "",
-        customerName:
-          user.user_metadata?.full_name ??
-          user.user_metadata?.name ??
-          user.email?.split("@")[0] ??
-          "고객",
-      });
-      // requestBillingAuth는 페이지를 이동하므로 이후 코드 실행 안 됨
+      await startSubscriptionCheckout(user);
     } catch (e: unknown) {
       // 사용자가 취소한 경우
       const userCancel =
@@ -183,7 +167,7 @@ export function PricingModal({ onClose }: Props) {
           {isPro ? (
             <div className="space-y-2">
               <div className="w-full py-2.5 rounded-lg bg-gain/10 border border-gain/20 text-gain text-sm font-semibold text-center flex items-center justify-center gap-2">
-                <Check className="w-4 h-4" /> Pro 구독 중
+                <Check className="w-4 h-4" /> AntGravity Pro 구독 중
               </div>
               {subscription?.status === "cancelled" ? (
                 <p className="text-xs text-center text-muted-foreground">
@@ -236,7 +220,7 @@ export function PricingModal({ onClose }: Props) {
           )}
 
           <p className="text-center text-xs text-muted-foreground mt-3">
-            토스페이먼츠로 안전하게 결제 · 언제든 취소 가능
+            토스페이먼츠 테스트 결제로 안전하게 확인 가능 · 언제든 취소 가능
           </p>
         </motion.div>
       </motion.div>

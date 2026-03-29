@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/useAuth";
 import type { Tables } from "@/integrations/supabase/types";
+import { TOSS_PLAN } from "@/config/toss";
 
 export interface Subscription {
   id: string;
@@ -12,6 +13,13 @@ export interface Subscription {
 }
 
 type SubscriptionRow = Tables<"subscriptions">;
+
+function isFutureDate(value: string | null): boolean {
+  if (!value) return false;
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) return false;
+  return timestamp > Date.now();
+}
 
 export function useSubscription() {
   const { user, session } = useAuth();
@@ -50,56 +58,44 @@ export function useSubscription() {
     fetchSubscription();
   }, [fetchSubscription]);
 
-  // isPro: active 상태이고 plan이 pro인 경우
   const isPro =
     subscription?.plan === "pro" &&
-    (subscription?.status === "active" || subscription?.status === "cancelled");
+    (
+      subscription?.status === "active" ||
+      (subscription?.status === "cancelled" && isFutureDate(subscription.currentPeriodEnd))
+    );
 
   const confirmPayment = useCallback(async (authKey: string, customerKey: string) => {
     if (!session) return { success: false, error: "로그인이 필요합니다." };
 
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    const res = await fetch(
-      `https://${projectId}.supabase.co/functions/v1/toss-confirm-payment`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          authKey,
-          customerKey,
-          amount: 4900,
-          orderId: `stockai_${user!.id}_${Date.now()}`,
-          orderName: "StockAI Pro 월정액",
-        }),
-      }
-    );
+    const { data, error } = await supabase.functions.invoke("toss-confirm-payment", {
+      body: {
+        authKey,
+        customerKey,
+        amount: TOSS_PLAN.price,
+        orderId: `stockai_${user!.id}_${Date.now()}`,
+        orderName: TOSS_PLAN.orderName,
+      },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
 
-    const data = await res.json();
-    if (res.ok && data.success) {
+    if (!error && data?.success) {
       await fetchSubscription();
       return { success: true };
     }
-    return { success: false, error: data.error ?? "결제 실패" };
+    return { success: false, error: error?.message ?? data?.error ?? "결제 실패" };
   }, [fetchSubscription, session, user]);
 
   const cancelSubscription = useCallback(async () => {
     if (!session) return { success: false };
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    const res = await fetch(
-      `https://${projectId}.supabase.co/functions/v1/toss-cancel-subscription`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      }
-    );
-    const data = await res.json();
-    if (res.ok && data.success) {
+    const { data, error } = await supabase.functions.invoke("toss-cancel-subscription", {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+    if (!error && data?.success) {
       await fetchSubscription();
       return { success: true };
     }

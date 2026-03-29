@@ -4,10 +4,8 @@ import {
   buildCorsHeaders,
   enforceWebhookReplayProtection,
   getErrorMessage,
-  verifySharedSecret,
 } from "../_shared/security.ts";
 
-const TOSS_WEBHOOK_SECRET = Deno.env.get("TOSS_WEBHOOK_SECRET") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SERVICE_ROLE_KEY") ?? "";
 
 serve(async (req) => {
@@ -17,11 +15,12 @@ serve(async (req) => {
   }
 
   try {
-    verifySharedSecret(req, TOSS_WEBHOOK_SECRET);
-
     const body = await req.json();
     const { eventType, data } = body;
-    const replayKey = `${eventType}:${data?.paymentKey ?? data?.customerKey ?? "unknown"}:${data?.status ?? "unknown"}`;
+    const transmissionId = req.headers.get("tosspayments-webhook-transmission-id");
+    const replayKey =
+      transmissionId ??
+      `${eventType}:${data?.paymentKey ?? data?.customerKey ?? "unknown"}:${data?.status ?? "unknown"}`;
     enforceWebhookReplayProtection(replayKey, 300);
 
     const supabase = createClient(
@@ -36,11 +35,21 @@ serve(async (req) => {
       });
     }
 
+    if (eventType !== "PAYMENT_STATUS_CHANGED") {
+      return new Response(JSON.stringify({ ok: true, ignored: true }), {
+        status: 200,
+        headers: { ...cors.headers, "Content-Type": "application/json" },
+      });
+    }
+
     // 정기결제 성공
-    if (eventType === "PAYMENT_STATUS_CHANGED" && data?.status === "DONE") {
+    if (data?.status === "DONE") {
       const customerKey = data?.customerKey;
       if (!customerKey) {
-        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+        return new Response(JSON.stringify({ ok: true, ignored: true }), {
+          status: 200,
+          headers: { ...cors.headers, "Content-Type": "application/json" },
+        });
       }
 
       // customerKey = user_id 로 구독 갱신
@@ -61,10 +70,7 @@ serve(async (req) => {
     }
 
     // 결제 실패 / 취소
-    if (
-      eventType === "PAYMENT_STATUS_CHANGED" &&
-      (data?.status === "CANCELED" || data?.status === "ABORTED")
-    ) {
+    if (data?.status === "CANCELED" || data?.status === "ABORTED") {
       const customerKey = data?.customerKey;
       if (customerKey) {
         await supabase

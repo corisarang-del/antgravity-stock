@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CheckCircle, Loader2, XCircle, Brain } from "lucide-react";
@@ -11,6 +11,7 @@ const PaymentSuccess = () => {
   const { user } = useAuth();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState("");
+  const confirmedRef = useRef(false);
 
   useEffect(() => {
     const authKey = searchParams.get("authKey");
@@ -26,6 +27,11 @@ const PaymentSuccess = () => {
       // 유저 로드 대기
       return;
     }
+
+    if (confirmedRef.current) {
+      return;
+    }
+    confirmedRef.current = true;
 
     confirmPayment(authKey, customerKey).then(({ success, error }) => {
       if (success) {
@@ -48,7 +54,7 @@ const PaymentSuccess = () => {
           <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
             <Brain className="w-4 h-4 text-primary" />
           </div>
-          <span className="font-bold gradient-text-primary text-lg">StockAI</span>
+          <span className="font-bold gradient-text-primary text-lg">AntGravity</span>
         </Link>
 
         {status === "loading" && (
@@ -69,13 +75,13 @@ const PaymentSuccess = () => {
             </motion.div>
             <h1 className="text-xl font-bold mb-2">Pro 구독 완료!</h1>
             <p className="text-sm text-muted-foreground mb-6">
-              이제 모든 Pro 기능을 무제한으로 사용하실 수 있습니다.
+              이제 AntGravity Pro 기능을 사용할 수 있습니다.
             </p>
             <Link
-              to="/"
+              to="/pro"
               className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
             >
-              시작하기
+              Pro 시작하기
             </Link>
           </>
         )}
@@ -86,10 +92,10 @@ const PaymentSuccess = () => {
             <h1 className="text-xl font-bold mb-2">결제 실패</h1>
             <p className="text-sm text-muted-foreground mb-6">{errorMsg}</p>
             <Link
-              to="/"
+              to="/upgrade"
               className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-secondary text-sm font-semibold hover:bg-secondary/80 transition-colors"
             >
-              돌아가기
+              업그레이드로 돌아가기
             </Link>
           </>
         )}
