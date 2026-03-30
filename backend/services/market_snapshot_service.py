@@ -13,6 +13,7 @@ from data.pipeline import TICKERS
 from schemas.dashboard import MarketSnapshot
 from services.fallback_data_service import FallbackDataService
 from services.runtime_cache import TtlCache
+from services.yfinance_timeout_service import run_with_timeout
 
 
 SNAPSHOT_CACHE = TtlCache[MarketSnapshot](ttl_seconds=60)
@@ -33,19 +34,19 @@ class MarketSnapshotService:
         self.fallbacks = FallbackDataService()
 
     def _load_from_yfinance(self, symbol: str) -> tuple[float, float, int]:
-        try:
+        def _load() -> tuple[float, float, int]:
             ticker = yf.Ticker(symbol)
             frame = ticker.history(period="5d", auto_adjust=True)
-        except Exception:
-            return 0.0, 0.0, 0
 
-        if frame.empty:
-            return 0.0, 0.0, 0
+            if frame.empty:
+                return 0.0, 0.0, 0
 
-        price = float(frame["Close"].iloc[-1])
-        previous_close = float(frame["Close"].iloc[-2]) if len(frame) > 1 else price
-        volume = int(frame["Volume"].iloc[-1]) if "Volume" in frame.columns else 0
-        return price, previous_close, volume
+            price = float(frame["Close"].iloc[-1])
+            previous_close = float(frame["Close"].iloc[-2]) if len(frame) > 1 else price
+            volume = int(frame["Volume"].iloc[-1]) if "Volume" in frame.columns else 0
+            return price, previous_close, volume
+
+        return run_with_timeout(f"market_snapshot:{symbol}", _load, 3.0, (0.0, 0.0, 0))
 
     def _load_from_training_sample(self, symbol: str) -> tuple[float, float, int]:
         frame = self.fallbacks.load_training_rows(symbol)

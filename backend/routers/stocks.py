@@ -20,6 +20,7 @@ from services.fundamentals_service import (
 from services.history_service import get_cached_history, get_public_financial_history
 from services.news_service import get_stock_news_feed
 from services.runtime_cache import TtlCache
+from services.yfinance_timeout_service import run_with_timeout
 
 router = APIRouter()
 fallbacks = FallbackDataService()
@@ -51,26 +52,26 @@ def _optional_supabase():
 
 def _rows_from_yfinance(symbol: str, period: str) -> list[dict]:
     # yf.Ticker().history()로 thread-safe하게 처리
-    try:
+    def _load() -> list[dict]:
         ticker = yf.Ticker(symbol)
         frame = ticker.history(period=period, auto_adjust=True)
-    except Exception:
-        return []
 
-    if frame.empty:
-        return []
+        if frame.empty:
+            return []
 
-    return [
-        {
-            "date": index.date().isoformat(),
-            "open": float(row["Open"]),
-            "high": float(row["High"]),
-            "low": float(row["Low"]),
-            "close": float(row["Close"]),
-            "volume": int(row["Volume"]),
-        }
-        for index, row in frame.iterrows()
-    ]
+        return [
+            {
+                "date": index.date().isoformat(),
+                "open": float(row["Open"]),
+                "high": float(row["High"]),
+                "low": float(row["Low"]),
+                "close": float(row["Close"]),
+                "volume": int(row["Volume"]),
+            }
+            for index, row in frame.iterrows()
+        ]
+
+    return run_with_timeout(f"stock_rows:{symbol}:{period}", _load, 5.0, [])
 
 
 def _rows_from_training_sample(symbol: str) -> list[dict]:

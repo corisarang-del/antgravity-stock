@@ -12,6 +12,7 @@ import yfinance as yf
 
 from services.runtime_cache import TtlCache
 import services.financials_cache_service as db_cache
+from services.yfinance_timeout_service import run_with_timeout
 
 _HISTORY_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=86400)
 
@@ -36,10 +37,16 @@ def _safe_float(val: Any) -> float | None:
 
 
 def _fetch_us_history(symbol: str) -> dict[str, Any]:
-    ticker = yf.Ticker(symbol)
-    financials = ticker.financials  # income statement (연간)
-    cashflow = ticker.cashflow
-    balance = ticker.balance_sheet
+    def _load():
+        ticker = yf.Ticker(symbol)
+        return ticker.financials, ticker.cashflow, ticker.balance_sheet
+
+    financials, cashflow, balance = run_with_timeout(
+        f"history:{symbol}",
+        _load,
+        5.0,
+        (None, None, None),
+    )
 
     annual: list[dict] = []
 

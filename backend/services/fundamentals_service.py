@@ -15,6 +15,7 @@ import yfinance as yf
 from core.config import settings
 from services.runtime_cache import TtlCache
 import services.financials_cache_service as db_cache
+from services.yfinance_timeout_service import run_with_timeout
 
 
 # ──────────────────────────────────────────────
@@ -204,7 +205,7 @@ def _build_score(data: dict[str, Any]) -> dict[str, Any]:
 # US 종목: yfinance .info
 # ──────────────────────────────────────────────
 def _fetch_us_fundamentals(symbol: str) -> dict[str, Any]:
-    info = yf.Ticker(symbol).info
+    info = run_with_timeout(f"fundamentals_info:{symbol}", lambda: yf.Ticker(symbol).info, 5.0, {})
 
     def _f(key: str) -> float | None:
         val = info.get(key)
@@ -336,7 +337,7 @@ def _fetch_kr_fundamentals(symbol: str) -> dict[str, Any]:
 
     if missing_fields:
         try:
-            info = yf.Ticker(symbol).info
+            info = run_with_timeout(f"fundamentals_fill:{symbol}", lambda: yf.Ticker(symbol).info, 5.0, {})
 
             def _f(key: str) -> float | None:
                 val = info.get(key)
@@ -391,7 +392,7 @@ def _fetch_kr_fundamentals(symbol: str) -> dict[str, Any]:
 
 def _kr_fallback_via_yfinance(symbol: str) -> dict[str, Any]:
     """dartlab 실패 시 yfinance로 폴백"""
-    info = yf.Ticker(symbol).info
+    info = run_with_timeout(f"kr_fallback:{symbol}", lambda: yf.Ticker(symbol).info, 5.0, {})
 
     def _f(key: str) -> float | None:
         val = info.get(key)
