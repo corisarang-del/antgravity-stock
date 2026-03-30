@@ -223,11 +223,11 @@ def get_public_financial_history(symbol: str) -> dict[str, Any]:
     if entry and entry["is_fresh"]:
         data = _HISTORY_CACHE.set(symbol, entry["data"])
         return {**data, "cache_status": "fresh", "fetched_at": entry["fetched_at"]}
+    if entry:
+        return {**entry["data"], "cache_status": "stale", "fetched_at": entry["fetched_at"]}
 
     try:
         data = fetch_and_cache_history(symbol)
         return {**data, "cache_status": "fresh", "fetched_at": None}
     except Exception:
-        if entry:
-            return {**entry["data"], "cache_status": "stale", "fetched_at": entry["fetched_at"]}
         raise

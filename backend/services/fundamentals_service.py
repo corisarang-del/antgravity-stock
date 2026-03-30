@@ -488,11 +488,11 @@ def get_public_fundamentals(symbol: str) -> dict[str, Any]:
     if entry and entry["is_fresh"]:
         data = _FUND_CACHE.set(symbol, entry["data"])
         return {**data, "cache_status": "fresh", "fetched_at": entry["fetched_at"]}
+    if entry:
+        return {**entry["data"], "cache_status": "stale", "fetched_at": entry["fetched_at"]}
 
     try:
         data = fetch_and_cache_fundamentals(symbol)
         return {**data, "cache_status": "fresh", "fetched_at": None}
     except Exception:
-        if entry:
-            return {**entry["data"], "cache_status": "stale", "fetched_at": entry["fetched_at"]}
         raise
