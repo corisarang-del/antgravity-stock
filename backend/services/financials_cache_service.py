@@ -18,6 +18,30 @@ from core.config import settings
 _CACHE_VALID_HOURS = 25
 
 
+def _read_cache_entry(table: str, symbol: str) -> dict[str, Any] | None:
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
+        return None
+    try:
+        res = (
+            _client()
+            .table(table)
+            .select("data, fetched_at")
+            .eq("symbol", symbol)
+            .single()
+            .execute()
+        )
+        row = res.data
+        if not row:
+            return None
+        return {
+            "data": row["data"],
+            "fetched_at": row["fetched_at"],
+            "is_fresh": _is_fresh(row["fetched_at"]),
+        }
+    except Exception:
+        return None
+
+
 def _client() -> Client:
     return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
@@ -54,23 +78,14 @@ def _read_all_cache(table: str) -> dict[str, Any]:
 
 def read_fundamentals(symbol: str) -> dict[str, Any] | None:
     """Supabase에서 재무지표 조회. 25h 이내 데이터만 반환."""
-    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
-        return None
-    try:
-        res = (
-            _client()
-            .table("financials_cache")
-            .select("data, fetched_at")
-            .eq("symbol", symbol)
-            .single()
-            .execute()
-        )
-        row = res.data
-        if row and _is_fresh(row["fetched_at"]):
-            return row["data"]
-    except Exception:
-        pass
+    entry = _read_cache_entry("financials_cache", symbol)
+    if entry and entry["is_fresh"]:
+        return entry["data"]
     return None
+
+
+def read_fundamentals_entry(symbol: str) -> dict[str, Any] | None:
+    return _read_cache_entry("financials_cache", symbol)
 
 
 def write_fundamentals(symbol: str, data: dict[str, Any]) -> None:
@@ -96,23 +111,14 @@ def write_fundamentals(symbol: str, data: dict[str, Any]) -> None:
 
 def read_history(symbol: str) -> dict[str, Any] | None:
     """Supabase에서 5개년 히스토리 조회. 25h 이내 데이터만 반환."""
-    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
-        return None
-    try:
-        res = (
-            _client()
-            .table("history_cache")
-            .select("data, fetched_at")
-            .eq("symbol", symbol)
-            .single()
-            .execute()
-        )
-        row = res.data
-        if row and _is_fresh(row["fetched_at"]):
-            return row["data"]
-    except Exception:
-        pass
+    entry = _read_cache_entry("history_cache", symbol)
+    if entry and entry["is_fresh"]:
+        return entry["data"]
     return None
+
+
+def read_history_entry(symbol: str) -> dict[str, Any] | None:
+    return _read_cache_entry("history_cache", symbol)
 
 
 def write_history(symbol: str, data: dict[str, Any]) -> None:

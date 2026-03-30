@@ -15,8 +15,10 @@ from services.fallback_data_service import FallbackDataService
 from services.fundamentals_service import (
     get_cached_fundamentals_bulk,
     get_cached_fundamentals,
+    get_public_fundamentals,
 )
-from services.history_service import get_cached_history
+from services.history_service import get_cached_history, get_public_financial_history
+from services.news_service import get_stock_news_feed
 from services.runtime_cache import TtlCache
 
 router = APIRouter()
@@ -231,25 +233,32 @@ async def get_fundamentals_overview(_access=Depends(require_pro_access)):
 
 
 @router.get("/{symbol}/fundamentals")
-async def get_stock_fundamentals(symbol: str, _access=Depends(require_pro_access)):
+async def get_stock_fundamentals(symbol: str):
     """재무지표 + Investment Score (캐시 데이터만 사용)"""
     if symbol not in TICKERS:
         raise HTTPException(status_code=404, detail=f"지원하지 않는 종목: {symbol}")
-    cached = get_cached_fundamentals(symbol)
-    if cached is not None:
-        return cached
-    raise HTTPException(status_code=503, detail="캐시된 재무 데이터가 아직 준비되지 않았습니다.")
+    try:
+        return get_public_fundamentals(symbol)
+    except Exception:
+        raise HTTPException(status_code=503, detail="현재 데이터 준비 중입니다. 잠시 후 다시 시도해 주세요.")
 
 
 @router.get("/{symbol}/history")
-async def get_stock_history(symbol: str, _access=Depends(require_pro_access)):
+async def get_stock_history(symbol: str):
     """5개년 재무 히스토리 (캐시 데이터만 사용)"""
     if symbol not in TICKERS:
         raise HTTPException(status_code=404, detail=f"지원하지 않는 종목: {symbol}")
-    cached = get_cached_history(symbol)
-    if cached is not None:
-        return cached
-    raise HTTPException(status_code=503, detail="캐시된 재무 히스토리 데이터가 아직 준비되지 않았습니다.")
+    try:
+        return get_public_financial_history(symbol)
+    except Exception:
+        raise HTTPException(status_code=503, detail="현재 데이터 준비 중입니다. 잠시 후 다시 시도해 주세요.")
+
+
+@router.get("/{symbol}/news")
+async def get_stock_news(symbol: str):
+    if symbol not in TICKERS:
+        raise HTTPException(status_code=404, detail=f"지원하지 않는 종목: {symbol}")
+    return get_stock_news_feed(symbol)
 
 
 @router.get("/")

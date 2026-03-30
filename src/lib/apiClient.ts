@@ -6,6 +6,18 @@ const KR_SYMBOL_RE = /^\d{6}$/;
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 const PRO_API_TIMEOUT_MS = 12_000;
 
+export class ApiError extends Error {
+  status: number;
+  detail?: unknown;
+
+  constructor(status: number, message: string, detail?: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
 // 한국 종목 (6자리 숫자) → "{symbol}.KS" suffix 추가
 function toBackendSymbol(symbol: string): string {
   return KR_SYMBOL_RE.test(symbol) ? `${symbol}.KS` : symbol;
@@ -57,7 +69,19 @@ async function apiFetch<T>(url: string, options?: RequestInit, timeoutMs?: numbe
     clearTimeout(timeoutId);
   }
   if (!res.ok) {
-    throw new Error(`API error ${res.status}: ${res.statusText}`);
+    let detail: unknown;
+    try {
+      detail = await res.json();
+    } catch {
+      detail = await res.text().catch(() => undefined);
+    }
+    const detailMessage =
+      typeof detail === "string"
+        ? detail
+        : typeof detail === "object" && detail !== null && "detail" in detail
+        ? String((detail as { detail?: unknown }).detail)
+        : res.statusText;
+    throw new ApiError(res.status, `API error ${res.status}: ${detailMessage}`, detail);
   }
   if (res.status === 204) {
     return undefined as T;
@@ -378,6 +402,8 @@ export interface InvestmentScore {
 export interface Fundamentals {
   symbol: string;
   source: string;
+  cache_status?: "fresh" | "stale";
+  fetched_at?: string | null;
   roe: number | null;
   gross_margin: number | null;
   operating_margin: number | null;
@@ -412,7 +438,73 @@ export interface HistoryRow {
 
 export interface FinancialHistory {
   symbol: string;
+  cache_status?: "fresh" | "stale";
+  fetched_at?: string | null;
   annual: HistoryRow[];
+}
+
+export interface StockNewsItem {
+  id: string;
+  title: string;
+  summary: string;
+  source: string;
+  published_at: string;
+  url: string;
+  kind: "article" | "disclosure";
+  sentiment: "positive" | "negative" | "neutral";
+}
+
+export interface StockNewsResponse {
+  items: StockNewsItem[];
+  cache_status: "fresh" | "stale" | "miss";
+  fetched_at?: string | null;
+}
+
+export interface MarketDiaryFearGreed {
+  score: number;
+  label: string;
+  prev: number;
+}
+
+export interface MarketDiaryTemperature {
+  score: number;
+  label: string;
+}
+
+export interface MarketDiarySymbolSentiment {
+  symbol: string;
+  name: string;
+  bullish: number;
+  bearish: number;
+  neutral: number;
+  posts: number;
+  change: number;
+  cache_status?: "fresh" | "stale" | "miss";
+}
+
+export interface MarketDiaryEntry {
+  id: string;
+  date: string;
+  mood: "bullish" | "neutral" | "bearish";
+  title: string;
+  body: string;
+  tags: string[];
+}
+
+export interface MarketDiaryIndex {
+  symbol: string;
+  name: string;
+  change_pct: number;
+}
+
+export interface MarketDiaryResponse {
+  fear_greed: MarketDiaryFearGreed;
+  market_temperature: MarketDiaryTemperature;
+  symbol_sentiments: MarketDiarySymbolSentiment[];
+  diary_entries: MarketDiaryEntry[];
+  indices: MarketDiaryIndex[];
+  cache_status?: "fresh" | "stale";
+  fetched_at?: string | null;
 }
 
 export interface ScreenerResult {
@@ -506,6 +598,19 @@ export async function fetchHistory(symbol: string): Promise<FinancialHistory> {
     undefined,
     PRO_API_TIMEOUT_MS,
   );
+}
+
+export async function fetchStockNews(symbol: string): Promise<StockNewsResponse> {
+  const backendSymbol = toBackendSymbol(symbol);
+  return apiFetch<StockNewsResponse>(
+    `/api/stocks/${encodeURIComponent(backendSymbol)}/news`,
+    undefined,
+    PRO_API_TIMEOUT_MS,
+  );
+}
+
+export async function fetchMarketDiary(): Promise<MarketDiaryResponse> {
+  return apiFetch<MarketDiaryResponse>("/api/sentiment/market-diary", undefined, PRO_API_TIMEOUT_MS);
 }
 
 export async function fetchScreener(

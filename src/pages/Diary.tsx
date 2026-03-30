@@ -1,51 +1,9 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { BookOpen, TrendingUp, TrendingDown, Minus, ThumbsUp, ThumbsDown, Activity, Thermometer } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-
-const FEAR_GREED = { score: 62, label: "탐욕", prev: 55 };
-const MARKET_TEMP = { score: 71, label: "과열 주의" };
-
-interface SentimentEntry {
-  symbol: string;
-  name: string;
-  bullish: number;
-  bearish: number;
-  neutral: number;
-  posts: number;
-  change: number;
-}
-
-const SENTIMENT_DATA: SentimentEntry[] = [
-  { symbol: "NVDA",   name: "NVIDIA",   bullish: 78, bearish: 12, neutral: 10, posts: 14820, change: 6  },
-  { symbol: "AAPL",   name: "Apple",    bullish: 65, bearish: 20, neutral: 15, posts: 9340,  change: -3 },
-  { symbol: "TSLA",   name: "Tesla",    bullish: 42, bearish: 45, neutral: 13, posts: 21500, change: -8 },
-  { symbol: "MSFT",   name: "Microsoft",bullish: 71, bearish: 14, neutral: 15, posts: 7620,  change: 4  },
-  { symbol: "005930", name: "삼성전자", bullish: 58, bearish: 28, neutral: 14, posts: 32100, change: 2  },
-  { symbol: "000660", name: "SK하이닉스",bullish: 72, bearish: 18, neutral: 10, posts: 11400, change: 9  },
-  { symbol: "035420", name: "NAVER",    bullish: 55, bearish: 30, neutral: 15, posts: 8900,  change: -1 },
-];
-
-const DIARY_ENTRIES = [
-  {
-    id: 1, date: "2026-03-09", mood: "bullish",
-    title: "AI 반도체 사이클, 아직 끝나지 않았다",
-    body: "NVDA의 블랙웰 수요가 예상보다 강합니다. 데이터센터 업그레이드 사이클이 2027년까지 이어질 것이라는 분석이 힘을 얻고 있습니다. 개미 투자자 입장에서는 단기 변동성보다 장기 트렌드에 집중하는 전략이 유효해 보입니다.",
-    tags: ["NVDA", "AI", "반도체"],
-  },
-  {
-    id: 2, date: "2026-03-08", mood: "neutral",
-    title: "FOMC 전 눈치 보기 장세, 방어적 포지션 고려",
-    body: "다음 주 FOMC를 앞두고 시장 변동성이 커지고 있습니다. 금리 동결 확률이 높지만 파월 의장의 발언 수위에 따라 단기 급등락이 발생할 수 있습니다. 현금 비중을 일부 높이며 기회를 기다리는 전략을 권장합니다.",
-    tags: ["FOMC", "금리", "방어주"],
-  },
-  {
-    id: 3, date: "2026-03-07", mood: "bearish",
-    title: "테슬라 1분기 인도량 우려, 단기 매도 압력 지속",
-    body: "테슬라 1분기 인도량이 컨센서스를 하회할 것이라는 전망이 나오고 있습니다. 중국 시장 경쟁 심화와 유럽 수요 둔화가 주요 원인입니다. 단기적으로 추가 하락 압력이 있을 수 있으며, 지지선 확인 후 접근을 권장합니다.",
-    tags: ["TSLA", "EV", "중국"],
-  },
-];
+import { fetchMarketDiary, type MarketDiarySymbolSentiment } from "@/lib/apiClient";
 
 const MOOD_CONFIG = {
   bullish: { label: "강세", icon: ThumbsUp,   cls: "text-gain bg-gain/10 border-gain/20" },
@@ -63,6 +21,40 @@ const getFearGreedColor = (score: number): string => {
 
 const Diary = () => {
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["marketDiary"],
+    queryFn: fetchMarketDiary,
+    staleTime: 30 * 60 * 1000,
+  });
+
+  if (isLoading) {
+    return (
+      <AppShell>
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          <div className="glass rounded-2xl p-5 border border-border text-sm text-muted-foreground text-center">
+            실시간 시황을 불러오는 중이야
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <AppShell>
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          <div className="glass rounded-2xl p-5 border border-border text-sm text-muted-foreground text-center">
+            실시간 시황을 아직 가져오지 못했어. 잠시 후 다시 시도해줘.
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  const FEAR_GREED = data.fear_greed;
+  const MARKET_TEMP = data.market_temperature;
+  const SENTIMENT_DATA: MarketDiarySymbolSentiment[] = data.symbol_sentiments;
+  const DIARY_ENTRIES = data.diary_entries;
 
   const fgColor = getFearGreedColor(FEAR_GREED.score);
   const fgCircumference = 2 * Math.PI * 36;
@@ -90,6 +82,12 @@ const Diary = () => {
         </motion.div>
 
         {/* ─── Fear & Greed + Market Temp ─── */}
+        {data?.cache_status === "stale" ? (
+          <div className="text-xs px-3 py-2 rounded-lg border bg-warning/10 text-warning border-warning/20">
+            전일 캐시 기준 시황이야. 최신 기사 수집이 끝나면 자동으로 갱신돼.
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
           {/* Fear & Greed */}

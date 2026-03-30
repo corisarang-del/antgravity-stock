@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from core.config import settings
 from core.supabase_client import get_supabase
+from services.market_diary_service import build_market_diary
 
 router = APIRouter()
 
@@ -254,3 +255,10 @@ async def get_summary(symbol: str, request: Request):
             pass
 
     return result
+
+
+@router.get("/market-diary")
+async def get_market_diary(request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(client_ip)
+    return build_market_diary()

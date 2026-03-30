@@ -12,6 +12,7 @@ export interface NewsFeedItem {
   source: string;
   time: string;
   sentiment: "positive" | "negative" | "neutral";
+  kind?: "article" | "disclosure";
   description?: string;
   url?: string;
 }
@@ -46,17 +47,20 @@ export function NewsFeed({ news, emptyMessage = "표시할 뉴스가 없다." }:
   return (
     <div className="space-y-2">
       {news.map((item, i) => (
-        <motion.div
+        <motion.a
           key={item.id}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.05 }}
-        className="glass rounded-xl p-4 hover:border-primary/30 transition-colors group"
-      >
-        <div className="flex items-start gap-3">
-          <div className="shrink-0 mt-0.5">
-            <SentimentIcon sentiment={item.sentiment} />
-          </div>
+          className="glass rounded-xl p-4 hover:border-primary/30 transition-colors group block"
+          href={item.url}
+          target={item.url ? "_blank" : undefined}
+          rel={item.url ? "noreferrer" : undefined}
+        >
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 mt-0.5">
+              <SentimentIcon sentiment={item.sentiment} />
+            </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-2 mb-2">
                 <p className="text-sm font-medium leading-snug group-hover:text-primary transition-colors line-clamp-2">
@@ -75,13 +79,18 @@ export function NewsFeed({ news, emptyMessage = "표시할 뉴스가 없다." }:
                 <span className="text-xs text-muted-foreground font-medium">{item.source}</span>
                 <span className="text-muted-foreground/40 text-xs">·</span>
                 <span className="text-xs text-muted-foreground">{item.time}</span>
+                {item.kind ? (
+                  <span className="text-xs px-1.5 py-0.5 rounded border font-medium bg-secondary text-muted-foreground border-border">
+                    {item.kind === "disclosure" ? "공시" : "기사"}
+                  </span>
+                ) : null}
                 <span className={`text-xs px-1.5 py-0.5 rounded border font-medium flex items-center gap-1 ${sentimentClass[item.sentiment]}`}>
                   {sentimentLabel[item.sentiment]}
                 </span>
               </div>
             </div>
           </div>
-        </motion.div>
+        </motion.a>
       ))}
     </div>
   );

@@ -477,3 +477,22 @@ def get_fundamentals(symbol: str) -> dict[str, Any]:
     if cached is not None:
         return cached
     return fetch_and_cache_fundamentals(symbol)
+
+
+def get_public_fundamentals(symbol: str) -> dict[str, Any]:
+    cached = _FUND_CACHE.get(symbol)
+    if cached is not None:
+        return {**cached, "cache_status": "fresh", "fetched_at": None}
+
+    entry = db_cache.read_fundamentals_entry(symbol)
+    if entry and entry["is_fresh"]:
+        data = _FUND_CACHE.set(symbol, entry["data"])
+        return {**data, "cache_status": "fresh", "fetched_at": entry["fetched_at"]}
+
+    try:
+        data = fetch_and_cache_fundamentals(symbol)
+        return {**data, "cache_status": "fresh", "fetched_at": None}
+    except Exception:
+        if entry:
+            return {**entry["data"], "cache_status": "stale", "fetched_at": entry["fetched_at"]}
+        raise

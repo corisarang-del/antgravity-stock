@@ -12,7 +12,7 @@ import { HistoricalTable } from "@/components/HistoricalTable";
 import { InvestmentScoreCard } from "@/components/InvestmentScoreCard";
 import { useStockBundle } from "@/hooks/useStockBundle";
 import { useFundamentals } from "@/hooks/useFundamentals";
-import { fetchSentiment, type OhlcvRow } from "@/lib/apiClient";
+import { fetchSentiment, fetchStockNews, type OhlcvRow } from "@/lib/apiClient";
 
 const TABS = [
   { id: "chart", label: "차트", icon: BarChart2 },
@@ -89,6 +89,12 @@ export function StockDetailPanel({ symbol }: Props) {
     staleTime: 30 * 60 * 1000,
     enabled: Boolean(symbol),
   });
+  const newsQuery = useQuery({
+    queryKey: ["stockNews", symbol],
+    queryFn: () => fetchStockNews(symbol),
+    staleTime: 30 * 60 * 1000,
+    enabled: Boolean(symbol),
+  });
 
   const ohlcv = bundle?.detail?.data ?? [];
   const prediction = bundle?.prediction;
@@ -127,18 +133,21 @@ export function StockDetailPanel({ symbol }: Props) {
     { name: "거래량 패턴", score: Math.min(100, score + 6) },
     { name: "모멘텀", score: Math.min(100, score + 3) },
   ];
-  const newsItems = sentiment
-    ? [
-        {
-          id: `${symbol}-sentiment`,
-          title: `${displayName} 투자 심리 요약`,
-          source: "AI Sentiment",
-          time: `최근 게시물 ${sentiment.post_count}건 기준`,
-          sentiment: sentiment.label,
-          description: sentiment.summary,
-        },
-      ]
-    : [];
+  const newsItems = (newsQuery.data?.items ?? []).map((item) => ({
+    id: item.id,
+    title: item.title,
+    source: item.source,
+    time: new Date(item.published_at).toLocaleString("ko-KR", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    sentiment: item.sentiment,
+    description: item.summary,
+    url: item.url,
+    kind: item.kind,
+  }));
 
   return (
     <div className="space-y-6">
@@ -301,6 +310,11 @@ export function StockDetailPanel({ symbol }: Props) {
                       <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-4">
                         핵심 재무지표
                       </div>
+                      {fundamentals.cache_status === "stale" ? (
+                        <div className="text-xs px-3 py-2 rounded-lg border bg-warning/10 text-warning border-warning/20 mb-4">
+                          전일 캐시 기준 데이터야. 최신 수집이 지연되면 이렇게 보여줘.
+                        </div>
+                      ) : null}
                       <FundamentalsGrid data={fundamentals} />
                     </div>
                     <div className="glass rounded-xl p-4">
@@ -312,7 +326,7 @@ export function StockDetailPanel({ symbol }: Props) {
                   </>
                 ) : (
                   <div className="glass rounded-xl p-5 text-sm text-muted-foreground text-center">
-                    재무 데이터를 아직 제공하지 못하고 있어
+                    현재 데이터 준비 중이야. 잠시 후 다시 시도해줘
                   </div>
                 )}
               </div>
@@ -323,9 +337,14 @@ export function StockDetailPanel({ symbol }: Props) {
                 <div className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">
                   최신 뉴스 및 감성 분석
                 </div>
+                {newsQuery.data?.cache_status === "stale" ? (
+                  <div className="text-xs px-3 py-2 rounded-lg border bg-warning/10 text-warning border-warning/20">
+                    뉴스 수집이 지연돼서 이전 캐시를 보여주고 있어.
+                  </div>
+                ) : null}
                 <NewsFeed
                   news={newsItems}
-                  emptyMessage="공개 뉴스 피드가 아직 연결되지 않았어. 연결 전까지는 감성 요약만 표시돼."
+                  emptyMessage="실시간 뉴스 피드를 아직 가져오지 못했어. 잠시 후 다시 시도해줘."
                 />
               </div>
             )}

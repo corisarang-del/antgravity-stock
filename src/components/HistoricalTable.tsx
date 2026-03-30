@@ -35,11 +35,20 @@ export function HistoricalTable({ symbol }: Props) {
   }
 
   if (isError || !data || data.annual.length === 0) {
-    return <p className="text-sm text-muted-foreground text-center py-4">재무 히스토리 없음</p>;
+    const message =
+      isError && data === undefined
+        ? "현재 데이터 준비 중, 잠시 후 다시 시도해줘"
+        : "재무 히스토리 없음";
+    return <p className="text-sm text-muted-foreground text-center py-4">{message}</p>;
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto space-y-3">
+      {data.cache_status === "stale" ? (
+        <div className="text-xs px-3 py-2 rounded-lg border bg-warning/10 text-warning border-warning/20">
+          전일 캐시 기준 데이터야. 최신 수집이 끝나면 자동으로 갱신돼.
+        </div>
+      ) : null}
       <table className="w-full text-xs">
         <thead>
           <tr className="border-b border-border/50">
