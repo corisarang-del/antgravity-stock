@@ -233,11 +233,14 @@ def get_public_financial_history(symbol: str) -> dict[str, Any]:
     if entry:
         annual = entry["data"].get("annual") or []
         if len(annual) == 0:
-            try:
-                data = fetch_and_cache_history(symbol)
+            data = run_with_timeout(
+                f"public_history_refresh:{symbol}",
+                lambda: fetch_and_cache_history(symbol),
+                3.0,
+                None,
+            )
+            if data is not None:
                 return {**data, "cache_status": "fresh", "fetched_at": None}
-            except Exception:
-                pass
         return {**entry["data"], "cache_status": "stale", "fetched_at": entry["fetched_at"]}
 
     try:

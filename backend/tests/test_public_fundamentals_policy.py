@@ -23,6 +23,24 @@ def test_public_fundamentals_falls_back_to_stale_cache(monkeypatch):
     assert payload["symbol"] == "NVDA"
 
 
+def test_public_fundamentals_short_circuits_slow_refresh(monkeypatch):
+    monkeypatch.setattr(fundamentals_service._FUND_CACHE, "get", lambda symbol: None)
+    monkeypatch.setattr(
+        fundamentals_service.db_cache,
+        "read_fundamentals_entry",
+        lambda symbol: {
+            "data": {"symbol": symbol, "source": "cache", "trailing_pe": None, "price_to_book": None, "peg_ratio": None},
+            "fetched_at": "2026-03-30T00:00:00+00:00",
+            "is_fresh": False,
+        },
+    )
+    monkeypatch.setattr(fundamentals_service, "run_with_timeout", lambda name, fn, timeout_seconds, fallback: None)
+
+    payload = fundamentals_service.get_public_fundamentals("005930.KS")
+    assert payload["cache_status"] == "stale"
+    assert payload["symbol"] == "005930.KS"
+
+
 def test_news_feed_uses_stale_persistent_cache_when_fetch_fails(monkeypatch):
     monkeypatch.setattr(news_service.NEWS_RUNTIME_CACHE, "get", lambda symbol: None)
     monkeypatch.setattr(

@@ -495,11 +495,14 @@ def get_public_fundamentals(symbol: str) -> dict[str, Any]:
         return {**data, "cache_status": "fresh", "fetched_at": entry["fetched_at"]}
     if entry:
         if any(entry["data"].get(field) is None for field in _PUBLIC_REQUIRED_FIELDS):
-            try:
-                data = fetch_and_cache_fundamentals(symbol)
+            data = run_with_timeout(
+                f"public_fundamentals_refresh:{symbol}",
+                lambda: fetch_and_cache_fundamentals(symbol),
+                3.0,
+                None,
+            )
+            if data is not None:
                 return {**data, "cache_status": "fresh", "fetched_at": None}
-            except Exception:
-                pass
         return {**entry["data"], "cache_status": "stale", "fetched_at": entry["fetched_at"]}
 
     try:
