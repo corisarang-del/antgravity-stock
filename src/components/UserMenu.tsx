@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogOut, Wallet, Star, Bell, Crown, Zap } from "lucide-react";
+import { LogOut, Wallet, Star, Bell, Crown, Zap, BarChart2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -107,6 +107,12 @@ export function UserMenu() {
 
               {/* Links */}
               <div className="py-1">
+                {isPro ? (
+                  <Link to="/pro" onClick={() => setOpen(false)}
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-secondary transition-colors">
+                    <BarChart2 className="w-4 h-4 text-primary" /> 프로 대시보드
+                  </Link>
+                ) : null}
                 <Link to="/portfolio" onClick={() => setOpen(false)}
                   className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-secondary transition-colors">
                   <Wallet className="w-4 h-4 text-primary" /> 포트폴리오

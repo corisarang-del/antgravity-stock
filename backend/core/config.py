@@ -23,10 +23,19 @@ DEFAULT_CORS_ORIGINS = [
 ]
 
 
+def should_enable_startup_warmup_by_default(app_env: str) -> bool:
+    return app_env != "production"
+
+
+def should_enable_scheduler_by_default(app_env: str) -> bool:
+    return app_env != "production"
+
+
 class Settings(BaseSettings):
     # 앱 환경
     APP_ENV: str = "development"
     STARTUP_WARMUP_ENABLED: Optional[bool] = None
+    SERVER_SCHEDULER_ENABLED: Optional[bool] = None
 
     # Supabase (서버사이드 전용 - 절대 프론트로 노출 금지)
     SUPABASE_URL: str = ""
@@ -57,8 +66,14 @@ class Settings(BaseSettings):
     @property
     def startup_warmup_enabled(self) -> bool:
         if self.STARTUP_WARMUP_ENABLED is None:
-            return self.APP_ENV != "production"
+            return should_enable_startup_warmup_by_default(self.APP_ENV)
         return self.STARTUP_WARMUP_ENABLED
+
+    @property
+    def server_scheduler_enabled(self) -> bool:
+        if self.SERVER_SCHEDULER_ENABLED is None:
+            return should_enable_scheduler_by_default(self.APP_ENV)
+        return self.SERVER_SCHEDULER_ENABLED
 
     @property
     def supabase_admin_enabled(self) -> bool:

@@ -336,6 +336,16 @@ def run_dividends() -> None:
         print("[dividends] 완료 - 저장할 배당 데이터 없음")
 
 
+def run_predictions() -> None:
+    """예측 데이터 precompute 후 Supabase predictions upsert."""
+    from scripts.daily_precompute_predictions import run_daily_precompute
+
+    print("[predictions] 시작")
+    result = run_daily_precompute()
+    print(f"[predictions] 완료 - {result['count']}개 저장")
+    print(f"[predictions] csv: {result['output_path']}")
+
+
 if __name__ == "__main__":
     import argparse
     import datetime
@@ -344,7 +354,7 @@ if __name__ == "__main__":
     parser.add_argument("--symbol", nargs="+", help="수집할 심볼 (fundamentals phase용)")
     parser.add_argument(
         "--phase",
-        choices=["fundamentals", "universe", "snapshot", "dividends"],
+        choices=["fundamentals", "universe", "snapshot", "dividends", "predictions"],
         default="fundamentals",
         help="수집 단계",
     )
@@ -369,3 +379,5 @@ if __name__ == "__main__":
         run_snapshot(args.market, date_str)
     elif args.phase == "dividends":
         run_dividends()
+    elif args.phase == "predictions":
+        run_predictions()

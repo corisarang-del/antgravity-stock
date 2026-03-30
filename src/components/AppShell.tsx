@@ -1,20 +1,15 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, BookOpen, Lightbulb, Zap, Sun, Moon } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
+import { buildTabs } from "@/lib/appShellTabs";
 import { UserMenu } from "@/components/UserMenu";
 import { MarketTicker } from "@/components/MarketOverview";
 import { AuthModal } from "@/components/AuthModal";
 import antCharacter from "@/assets/ant_character.png";
-
-const TABS = [
-  { path: "/home",    label: "홈",          icon: Home },
-  { path: "/diary",   label: "개미의 일기",  icon: BookOpen },
-  { path: "/tips",    label: "꿀팁정보",    icon: Lightbulb },
-  { path: "/upgrade", label: "업그레이드",  icon: Zap },
-];
 
 interface AppShellProps {
   children: ReactNode;
@@ -23,9 +18,11 @@ interface AppShellProps {
 
 export function AppShell({ children, hideTicker }: AppShellProps) {
   const { user } = useAuth();
+  const { isPro } = useSubscription();
   const location = useLocation();
   const [showAuth, setShowAuth] = useState(false);
   const { theme, setTheme } = useTheme();
+  const tabs = buildTabs(isPro);
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
@@ -53,7 +50,7 @@ export function AppShell({ children, hideTicker }: AppShellProps) {
 
         {/* Desktop Tab Nav */}
         <nav className="hidden md:flex items-center gap-2 bg-secondary/60 rounded-xl p-1">
-          {TABS.map(({ path, label, icon: Icon }) => {
+          {tabs.map(({ path, label, icon: Icon }) => {
             const active = isActive(path);
             return (
               <Link key={path} to={path}>
@@ -114,7 +111,7 @@ export function AppShell({ children, hideTicker }: AppShellProps) {
       {/* Mobile Bottom Tab Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-sm">
         <div className="flex items-center justify-around px-2 py-1.5">
-          {TABS.map(({ path, label, icon: Icon }) => {
+          {tabs.map(({ path, label, icon: Icon }) => {
             const active = isActive(path);
             return (
               <Link key={path} to={path} className="flex-1">

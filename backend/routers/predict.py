@@ -4,7 +4,6 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from data.preprocess import HORIZON
-from services.prediction_service import get_prediction_payload
 
 router = APIRouter()
 
@@ -16,4 +15,6 @@ class PredictRequest(BaseModel):
 
 @router.post("/")
 async def predict(req: PredictRequest):
+    from services.prediction_service import get_prediction_payload
+
     return get_prediction_payload(req.symbol, horizon=req.horizon)

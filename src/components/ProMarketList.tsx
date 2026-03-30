@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { Loader2, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMarketFull } from "@/hooks/useMarketFull";
 import { fetchMarketSearch, type MarketSearchResponse, type MarketStock } from "@/lib/apiClient";
+import { getProMarketListState } from "@/lib/proMarketListState";
 import { ProMarketFilter } from "@/components/ProMarketFilter";
 import { useQuery } from "@tanstack/react-query";
 
@@ -52,7 +53,11 @@ export function ProMarketList({ onSelect }: Props) {
   const activeQuery = isSearchMode ? searchResult : listQuery;
   const items: MarketStock[] = activeQuery.data?.items ?? [];
   const total: number = activeQuery.data?.total ?? 0;
-  const isLoading = activeQuery.isLoading;
+  const viewState = getProMarketListState({
+    isLoading: activeQuery.isLoading,
+    isError: activeQuery.isError,
+    total,
+  });
 
   const totalPages = Math.ceil(total / PAGE_LIMIT);
   const rangeStart = (page - 1) * PAGE_LIMIT + 1;
@@ -119,11 +124,15 @@ export function ProMarketList({ onSelect }: Props) {
       </div>
 
       {/* 테이블 */}
-      {isLoading ? (
+      {viewState === "loading" ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
-      ) : total === 0 ? (
+      ) : viewState === "error" ? (
+        <div className="flex items-center justify-center py-16">
+          <p className="text-sm text-muted-foreground">시장 데이터를 불러올 수 없습니다.</p>
+        </div>
+      ) : viewState === "empty" ? (
         <div className="flex items-center justify-center py-16">
           <p className="text-sm text-muted-foreground">시장 데이터 수집 중...</p>
         </div>

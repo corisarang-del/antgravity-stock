@@ -22,6 +22,7 @@ on:
           - universe
           - snapshot
           - dividends
+          - predictions
           - all
 
 jobs:
@@ -146,3 +147,34 @@ jobs:
 
       - name: Collect dividends (yfinance)
         run: python backend/scripts/daily_refresh.py --phase dividends
+
+  refresh-predictions:
+    name: Predictions Precompute (핵심 종목 일일 예측)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: |
+      github.event_name == 'schedule' && github.event.schedule == '0 21 * * *' ||
+      github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.phase == 'predictions' || github.event.inputs.phase == 'all')
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install base dependencies
+        run: pip install -r backend/requirements-ci.txt
+
+      - name: Install prediction dependencies
+        run: pip install torch scikit-learn
+
+      - name: Precompute predictions
+        run: python backend/scripts/daily_precompute_predictions.py

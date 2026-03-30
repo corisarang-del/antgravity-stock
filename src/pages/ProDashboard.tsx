@@ -212,6 +212,12 @@ function ProDashboardContent() {
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                 </div>
+              ) : fundQueries.isError ? (
+                <div className="glass rounded-2xl border border-border p-5">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Pro 재무 데이터를 불러올 수 없습니다.
+                  </p>
+                </div>
               ) : fundQueries.data ? (
                 <ProTopRanking fundamentalsMap={fundQueries.data} names={TICKER_NAMES} />
               ) : null}

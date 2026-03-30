@@ -15,7 +15,6 @@ from data.pipeline import TICKERS
 from services.fallback_data_service import FallbackDataService
 from services.fundamentals_service import get_fundamentals
 from services.history_service import get_financial_history
-from services.prediction_service import get_prediction_payload
 from services.runtime_cache import TtlCache
 
 router = APIRouter()
@@ -127,6 +126,8 @@ async def get_stock_bundle(
     cached_bundle = STOCK_BUNDLE_CACHE.get(cache_key)
     if cached_bundle is not None:
         return cached_bundle
+
+    from services.prediction_service import get_prediction_payload
 
     detail = _load_stock_payload(symbol, period)
     prediction = get_prediction_payload(symbol, horizon=1)

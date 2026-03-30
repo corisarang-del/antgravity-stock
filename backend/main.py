@@ -72,6 +72,7 @@ async def lifespan(app: FastAPI):
     )
 
     loop = asyncio.get_running_loop()
+    scheduler_started = False
 
     if settings.startup_warmup_enabled:
         logger.info("[startup] scheduling background warmup")
@@ -80,22 +81,27 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("[startup] background warmup skipped by config")
 
+    if settings.server_scheduler_enabled:
+        try:
+            start_scheduler()
+            scheduler_started = True
+            logger.info("[startup] scheduler started")
+        except Exception:
+            logger.exception("[startup] scheduler start failed")
+    else:
+        logger.info("[startup] scheduler skipped by config")
+
     logger.info("[startup] application ready")
 
     yield
 
     logger.info("[shutdown] lifespan begin")
-    try:
-        start_scheduler()
-        logger.info("[shutdown] scheduler started for cleanup path")
-    except Exception:
-        logger.exception("[shutdown] scheduler start failed")
-
-    try:
-        stop_scheduler()
-        logger.info("[shutdown] scheduler stopped")
-    except Exception:
-        logger.exception("[shutdown] scheduler stop failed")
+    if scheduler_started:
+        try:
+            stop_scheduler()
+            logger.info("[shutdown] scheduler stopped")
+        except Exception:
+            logger.exception("[shutdown] scheduler stop failed")
 
     _background_jobs.clear()
     logger.info("[shutdown] lifespan complete")

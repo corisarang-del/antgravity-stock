@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Literal
 
 import pandas as pd
 import yfinance as yf
@@ -10,14 +11,18 @@ from core.config import settings
 from core.supabase_client import get_supabase
 from data.pipeline import TICKERS
 from data.preprocess import LOOKBACK, build_features, make_sequences
-from models.lstm_model import AntPredictor
 from services.fallback_data_service import FallbackDataService
 from services.runtime_cache import TtlCache
+
+if TYPE_CHECKING:
+    from models.lstm_model import AntPredictor
 
 
 _predictors: dict[str, AntPredictor] = {}
 _fallbacks = FallbackDataService()
 PREDICTION_CACHE = TtlCache[dict](ttl_seconds=300)
+
+PredictionMode = Literal["cached", "fallback", "runtime"]
 
 
 def get_optional_supabase():
@@ -29,7 +34,17 @@ def get_optional_supabase():
         return None
 
 
+def resolve_prediction_mode(app_env: str, *, has_cached_prediction: bool) -> PredictionMode:
+    if has_cached_prediction:
+        return "cached"
+    if app_env == "production":
+        return "fallback"
+    return "runtime"
+
+
 def _get_predictor(symbol: str) -> AntPredictor:
+    from models.lstm_model import AntPredictor
+
     if symbol not in _predictors:
         _predictors[symbol] = AntPredictor(symbol)
     return _predictors[symbol]
@@ -78,7 +93,7 @@ def load_history(symbol: str, supabase) -> pd.DataFrame:
     return frame[["open", "high", "low", "close", "volume"]]
 
 
-def build_fallback_payload(symbol: str, today: str) -> dict:
+def build_fallback_payload(symbol: str, today: str, *, diagnostics_source: str = "local-runtime") -> dict:
     latest_result = _fallbacks.load_latest_prediction_row(symbol)
     if latest_result is None:
         raise HTTPException(status_code=422, detail="가격 데이터를 불러오지 못했다.")
@@ -104,7 +119,7 @@ def build_fallback_payload(symbol: str, today: str) -> dict:
         "regime_label": regime_label,
         "prediction_interval_low": round(min(last_close, predicted_price), 2),
         "prediction_interval_high": round(max(last_close, predicted_price), 2),
-        "diagnostics_source": "local-runtime",
+        "diagnostics_source": diagnostics_source,
         "vectrix_poc_score": None,
     }
 
@@ -127,6 +142,7 @@ def get_prediction_payload(
 
     supabase = get_optional_supabase()
     today = datetime.utcnow().date().isoformat()
+    cached_payload: dict | None = None
 
     if supabase is not None:
         try:
@@ -139,10 +155,16 @@ def get_prediction_payload(
                 .execute()
             )
             if cached.data:
-                payload = cached.data[0]
-                return PREDICTION_CACHE.set(cache_key, payload) if use_runtime_cache else payload
+                cached_payload = cached.data[0]
         except Exception:
             pass
+
+    mode = resolve_prediction_mode(settings.APP_ENV, has_cached_prediction=cached_payload is not None)
+    if mode == "cached" and cached_payload is not None:
+        return PREDICTION_CACHE.set(cache_key, cached_payload) if use_runtime_cache else cached_payload
+    if mode == "fallback":
+        payload = build_fallback_payload(symbol, today, diagnostics_source="precompute-miss-fallback")
+        return PREDICTION_CACHE.set(cache_key, payload) if use_runtime_cache else payload
 
     df = load_history(symbol, supabase)
     if df.empty:

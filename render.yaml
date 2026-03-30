@@ -10,6 +10,10 @@ services:
     envVars:
       - key: APP_ENV
         value: production
+      - key: STARTUP_WARMUP_ENABLED
+        value: false
+      - key: SERVER_SCHEDULER_ENABLED
+        value: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
