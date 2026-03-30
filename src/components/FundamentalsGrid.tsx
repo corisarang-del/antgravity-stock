@@ -2,6 +2,10 @@
 
 import type { Fundamentals } from "@/lib/apiClient";
 
+function isKrSymbol(symbol: string): boolean {
+  return /^\d{6}(\.K[QS])?$/.test(symbol);
+}
+
 function fmt(val: number | null, type: "pct" | "ratio" | "x" | "mktcap"): string {
   if (val === null || val === undefined) return "—";
   if (type === "pct") return `${(val * 100).toFixed(1)}%`;
@@ -13,6 +17,21 @@ function fmt(val: number | null, type: "pct" | "ratio" | "x" | "mktcap"): string
     return `$${(val / 1e6).toFixed(0)}M`;
   }
   return String(val);
+}
+
+function fmtMarketCap(val: number | null, symbol: string): string {
+  if (val === null || val === undefined) return "—";
+  if (isKrSymbol(symbol)) {
+    if (val >= 1e12) return `${(val / 1e12).toFixed(1)}조원`;
+    if (val >= 1e8) return `${(val / 1e8).toFixed(0)}억원`;
+    return `${Math.round(val).toLocaleString()}원`;
+  }
+  return fmt(val, "mktcap");
+}
+
+function fmtPrice(val: number | null, symbol: string): string {
+  if (val === null || val === undefined) return "—";
+  return isKrSymbol(symbol) ? `₩${val.toLocaleString()}` : `$${val.toFixed(2)}`;
 }
 
 interface MetricCardProps {
@@ -82,7 +101,7 @@ export function FundamentalsGrid({ data }: Props) {
           <MetricCard label="부채비율" value={fmt(data.debt_to_equity, "ratio")} positive={data.debt_to_equity !== null ? data.debt_to_equity <= 0.5 : undefined} />
           <MetricCard label="유동비율" value={fmt(data.current_ratio, "ratio")} positive={data.current_ratio !== null ? data.current_ratio >= 1.5 : undefined} />
           <MetricCard label="배당수익률" value={fmt(data.dividend_yield, "pct")} />
-          <MetricCard label="시가총액" value={fmt(data.market_cap, "mktcap")} />
+          <MetricCard label="시가총액" value={fmtMarketCap(data.market_cap, data.symbol)} />
         </div>
       </div>
 
@@ -91,9 +110,9 @@ export function FundamentalsGrid({ data }: Props) {
         <div>
           <h4 className="text-xs font-semibold text-muted-foreground mb-2">52주 범위</h4>
           <div className="glass rounded-xl border border-border p-3 flex items-center gap-3">
-            <span className="text-xs text-loss font-mono">${data.fifty_two_week_low?.toFixed(2)}</span>
+            <span className="text-xs text-loss font-mono">{fmtPrice(data.fifty_two_week_low, data.symbol)}</span>
             <div className="flex-1 h-2 rounded-full bg-secondary" />
-            <span className="text-xs text-gain font-mono">${data.fifty_two_week_high?.toFixed(2)}</span>
+            <span className="text-xs text-gain font-mono">{fmtPrice(data.fifty_two_week_high, data.symbol)}</span>
           </div>
         </div>
       )}

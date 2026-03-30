@@ -162,9 +162,9 @@ def _fetch_kr_history(symbol: str) -> dict[str, Any]:
 
                     annual.append({
                         "year": str(year),
-                        "revenue": revenue,
-                        "net_income": net_income,
-                        "operating_income": operating_income,
+                        "revenue": revenue * 1_000_000 if revenue is not None else None,
+                        "net_income": net_income * 1_000_000 if net_income is not None else None,
+                        "operating_income": operating_income * 1_000_000 if operating_income is not None else None,
                         "eps": None,
                         "roe": roe,
                         "gross_margin": gross_margin,
@@ -224,6 +224,13 @@ def get_public_financial_history(symbol: str) -> dict[str, Any]:
         data = _HISTORY_CACHE.set(symbol, entry["data"])
         return {**data, "cache_status": "fresh", "fetched_at": entry["fetched_at"]}
     if entry:
+        annual = entry["data"].get("annual") or []
+        if len(annual) == 0:
+            try:
+                data = fetch_and_cache_history(symbol)
+                return {**data, "cache_status": "fresh", "fetched_at": None}
+            except Exception:
+                pass
         return {**entry["data"], "cache_status": "stale", "fetched_at": entry["fetched_at"]}
 
     try:

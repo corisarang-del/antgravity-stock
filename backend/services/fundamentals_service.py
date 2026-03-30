@@ -103,6 +103,7 @@ _KR_CORP_CODE: dict[str, str] = {}  # 초기화는 _get_kr_corp_codes()에서
 
 # 8시간 TTL 캐시 — 재무데이터는 하루 1~2회 갱신
 _FUND_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=28800)
+_PUBLIC_REQUIRED_FIELDS = ("trailing_pe", "price_to_book", "peg_ratio")
 
 
 # ──────────────────────────────────────────────
@@ -374,6 +375,9 @@ def _fetch_kr_fundamentals(symbol: str) -> dict[str, Any]:
         except Exception:
             pass
 
+    if data.get("dividend_yield") is not None and data["dividend_yield"] > 1:
+        data["dividend_yield"] = data["dividend_yield"] / 100
+
     # PEG 계산 (PER / EPS 성장률)
     if data.get("peg_ratio") is None:
         per = data.get("trailing_pe")
@@ -489,6 +493,12 @@ def get_public_fundamentals(symbol: str) -> dict[str, Any]:
         data = _FUND_CACHE.set(symbol, entry["data"])
         return {**data, "cache_status": "fresh", "fetched_at": entry["fetched_at"]}
     if entry:
+        if any(entry["data"].get(field) is None for field in _PUBLIC_REQUIRED_FIELDS):
+            try:
+                data = fetch_and_cache_fundamentals(symbol)
+                return {**data, "cache_status": "fresh", "fetched_at": None}
+            except Exception:
+                pass
         return {**entry["data"], "cache_status": "stale", "fetched_at": entry["fetched_at"]}
 
     try:

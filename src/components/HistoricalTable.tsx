@@ -4,8 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchHistory } from "@/lib/apiClient";
 import { Loader2 } from "lucide-react";
 
-function fmtB(val: number | null): string {
+function isKrSymbol(symbol: string): boolean {
+  return /^\d{6}(\.K[QS])?$/.test(symbol);
+}
+
+function fmtAmount(val: number | null, symbol: string): string {
   if (val === null) return "—";
+  if (isKrSymbol(symbol)) {
+    return `${(val / 1e12).toFixed(1)}조`;
+  }
   return `${(val / 1e9).toFixed(1)}B`;
 }
 
@@ -65,9 +72,9 @@ export function HistoricalTable({ symbol }: Props) {
           {data.annual.toReversed().slice(0, 5).map((row) => (
             <tr key={row.year} className="border-b border-border/30 hover:bg-secondary/30 transition-colors">
               <td className="py-2 pr-3 font-semibold">{row.year}</td>
-              <td className="text-right py-2 px-3 font-mono">{fmtB(row.revenue)}</td>
-              <td className="text-right py-2 px-3 font-mono">{fmtB(row.net_income)}</td>
-              <td className="text-right py-2 px-3 font-mono">{fmtB(row.operating_income)}</td>
+              <td className="text-right py-2 px-3 font-mono">{fmtAmount(row.revenue, symbol)}</td>
+              <td className="text-right py-2 px-3 font-mono">{fmtAmount(row.net_income, symbol)}</td>
+              <td className="text-right py-2 px-3 font-mono">{fmtAmount(row.operating_income, symbol)}</td>
               <td className="text-right py-2 px-3 font-mono">{fmtPct(row.gross_margin)}</td>
               <td className="text-right py-2 px-3 font-mono">{fmtPct(row.roe)}</td>
             </tr>
