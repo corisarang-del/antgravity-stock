@@ -1,26 +1,41 @@
 from __future__ import annotations
 
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
 import pandas as pd
 import yfinance as yf
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from api.dependencies import require_pro_access
 from core.config import settings
 from core.supabase_client import get_supabase
 from data.pipeline import TICKERS
 from services.fallback_data_service import FallbackDataService
-from services.fundamentals_service import get_fundamentals
-from services.history_service import get_financial_history
+from services.fundamentals_service import (
+    get_cached_fundamentals_bulk,
+    get_cached_fundamentals,
+)
+from services.history_service import get_cached_history
 from services.runtime_cache import TtlCache
 
 router = APIRouter()
 fallbacks = FallbackDataService()
 STOCK_RESPONSE_CACHE = TtlCache[dict](ttl_seconds=300)
 STOCK_BUNDLE_CACHE = TtlCache[dict](ttl_seconds=300)
+
+
+class FundamentalsOverviewRankItem(BaseModel):
+    symbol: str
+    name: str
+    value: float
+
+
+class FundamentalsOverviewResponse(BaseModel):
+    available_count: int
+    growth_leaders: list[FundamentalsOverviewRankItem]
+    growth_laggards: list[FundamentalsOverviewRankItem]
+    top_scores: list[FundamentalsOverviewRankItem]
 
 
 def _optional_supabase():
@@ -114,6 +129,50 @@ def _load_stock_payload(symbol: str, period: str) -> dict:
     return STOCK_RESPONSE_CACHE.set(cache_key, payload)
 
 
+def _ticker_name(symbol: str) -> str:
+    return TICKERS.get(symbol, {}).get("name", symbol)
+
+
+def _build_rank_items(
+    cached_map: dict[str, dict | None],
+    *,
+    metric: str,
+    limit: int = 5,
+    reverse: bool = True,
+) -> list[FundamentalsOverviewRankItem]:
+    ranked = [
+        FundamentalsOverviewRankItem(
+            symbol=symbol,
+            name=_ticker_name(symbol),
+            value=float(metric_value),
+        )
+        for symbol, payload in cached_map.items()
+        if payload is not None
+        for metric_value in [payload.get(metric)]
+        if metric_value is not None
+    ]
+    ranked.sort(key=lambda item: item.value, reverse=reverse)
+    return ranked[:limit]
+
+
+def _build_score_rank_items(
+    cached_map: dict[str, dict | None],
+    *,
+    limit: int = 5,
+) -> list[FundamentalsOverviewRankItem]:
+    ranked = [
+        FundamentalsOverviewRankItem(
+            symbol=symbol,
+            name=_ticker_name(symbol),
+            value=float(payload["score"]["total"]),
+        )
+        for symbol, payload in cached_map.items()
+        if payload is not None and isinstance(payload.get("score"), dict) and payload["score"].get("total") is not None
+    ]
+    ranked.sort(key=lambda item: item.value, reverse=True)
+    return ranked[:limit]
+
+
 @router.get("/{symbol}/bundle")
 async def get_stock_bundle(
     symbol: str,
@@ -150,41 +209,47 @@ async def get_fundamentals_batch(
     symbols: str = Query(..., description="콤마 구분 심볼 목록 (예: NVDA,005930.KS)"),
     _access=Depends(require_pro_access),
 ):
-    """여러 종목 재무지표를 한 번에 반환. 14개 종목 병렬 수집용."""
+    """여러 종목 재무지표를 캐시에서 한 번에 반환."""
     symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
     valid = [s for s in symbol_list if s in TICKERS]
+    return get_cached_fundamentals_bulk(valid)
 
-    loop = asyncio.get_event_loop()
-    with ThreadPoolExecutor() as pool:
-        futures = [loop.run_in_executor(pool, get_fundamentals, sym) for sym in valid]
-        results = await asyncio.gather(*futures, return_exceptions=True)
 
-    return {
-        sym: (None if isinstance(r, Exception) else r)
-        for sym, r in zip(valid, results)
-    }
+@router.get("/fundamentals/overview", response_model=FundamentalsOverviewResponse)
+async def get_fundamentals_overview(_access=Depends(require_pro_access)):
+    """개요 탭용 사전 계산 랭킹. 캐시된 재무 데이터만 사용한다."""
+    symbols = list(TICKERS.keys())
+    cached_map = get_cached_fundamentals_bulk(symbols)
+    available_count = sum(1 for payload in cached_map.values() if payload is not None)
+
+    return FundamentalsOverviewResponse(
+        available_count=available_count,
+        growth_leaders=_build_rank_items(cached_map, metric="earnings_growth", reverse=True),
+        growth_laggards=_build_rank_items(cached_map, metric="earnings_growth", reverse=False),
+        top_scores=_build_score_rank_items(cached_map),
+    )
 
 
 @router.get("/{symbol}/fundamentals")
 async def get_stock_fundamentals(symbol: str, _access=Depends(require_pro_access)):
-    """재무지표 + Investment Score (30분 TTL 캐시)"""
+    """재무지표 + Investment Score (캐시 데이터만 사용)"""
     if symbol not in TICKERS:
         raise HTTPException(status_code=404, detail=f"지원하지 않는 종목: {symbol}")
-    try:
-        return get_fundamentals(symbol)
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"재무 데이터 조회 실패: {exc}") from exc
+    cached = get_cached_fundamentals(symbol)
+    if cached is not None:
+        return cached
+    raise HTTPException(status_code=503, detail="캐시된 재무 데이터가 아직 준비되지 않았습니다.")
 
 
 @router.get("/{symbol}/history")
 async def get_stock_history(symbol: str, _access=Depends(require_pro_access)):
-    """5개년 재무 히스토리 (24시간 TTL 캐시)"""
+    """5개년 재무 히스토리 (캐시 데이터만 사용)"""
     if symbol not in TICKERS:
         raise HTTPException(status_code=404, detail=f"지원하지 않는 종목: {symbol}")
-    try:
-        return get_financial_history(symbol)
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"재무 히스토리 조회 실패: {exc}") from exc
+    cached = get_cached_history(symbol)
+    if cached is not None:
+        return cached
+    raise HTTPException(status_code=503, detail="캐시된 재무 히스토리 데이터가 아직 준비되지 않았습니다.")
 
 
 @router.get("/")

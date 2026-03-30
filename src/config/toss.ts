@@ -4,7 +4,7 @@ export const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY ?? "test_ck_
 
 export const TOSS_PLAN = {
   name: "Pro",
-  price: 4900,
+  price: 9900,
   currency: "KRW",
   orderName: "AntGravity Pro 월정액",
 } as const;

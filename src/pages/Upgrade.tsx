@@ -148,7 +148,7 @@ const Upgrade = () => {
               추천
             </div>
             <div className="text-sm font-semibold text-primary mb-1">Pro</div>
-            <div className="text-3xl font-bold font-mono mb-0.5">₩4,900</div>
+            <div className="text-3xl font-bold font-mono mb-0.5">₩9,900</div>
             <div className="text-xs text-muted-foreground mb-4">/월, 언제든 취소 가능</div>
             <ul className="space-y-2.5">
               {proFeatures.map(({ icon: Icon, label }) => (
@@ -241,7 +241,7 @@ const Upgrade = () => {
               ) : (
                 <>
                   <Zap className="w-5 h-5" />
-                  Pro 시작하기, 월 ₩4,900
+                  Pro 시작하기, 월 ₩9,900
                 </>
               )}
             </button>

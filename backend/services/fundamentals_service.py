@@ -425,7 +425,7 @@ def _kr_fallback_via_yfinance(symbol: str) -> dict[str, Any]:
 # ──────────────────────────────────────────────
 # Public API
 # ──────────────────────────────────────────────
-def get_fundamentals(symbol: str) -> dict[str, Any]:
+def get_cached_fundamentals(symbol: str) -> dict[str, Any] | None:
     # 1. 인메모리 TtlCache
     cached = _FUND_CACHE.get(symbol)
     if cached is not None:
@@ -436,6 +436,32 @@ def get_fundamentals(symbol: str) -> dict[str, Any]:
     if db_data is not None:
         return _FUND_CACHE.set(symbol, db_data)
 
+    return None
+
+
+def get_cached_fundamentals_bulk(symbols: list[str]) -> dict[str, dict[str, Any] | None]:
+    result: dict[str, dict[str, Any] | None] = {}
+    missing: list[str] = []
+
+    for symbol in symbols:
+        cached = _FUND_CACHE.get(symbol)
+        if cached is not None:
+            result[symbol] = cached
+        else:
+            missing.append(symbol)
+
+    if not missing:
+        return result
+
+    db_rows = db_cache.read_all_fundamentals()
+    for symbol in missing:
+        cached = db_rows.get(symbol)
+        result[symbol] = _FUND_CACHE.set(symbol, cached) if cached is not None else None
+
+    return result
+
+
+def fetch_and_cache_fundamentals(symbol: str) -> dict[str, Any]:
     # 3. 외부 API (dartlab / yfinance) → Supabase + TtlCache 저장
     if symbol in _get_kr_corp_codes():
         data = _fetch_kr_fundamentals(symbol)
@@ -444,3 +470,10 @@ def get_fundamentals(symbol: str) -> dict[str, Any]:
 
     db_cache.write_fundamentals(symbol, data)
     return _FUND_CACHE.set(symbol, data)
+
+
+def get_fundamentals(symbol: str) -> dict[str, Any]:
+    cached = get_cached_fundamentals(symbol)
+    if cached is not None:
+        return cached
+    return fetch_and_cache_fundamentals(symbol)

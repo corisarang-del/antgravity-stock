@@ -15,7 +15,7 @@ export function useMarketFull(params: UseMarketFullParams = {}) {
   return useQuery<MarketFullResponse>({
     queryKey: ["marketFull", market, page, limit, sort, sector],
     queryFn: () => fetchMarketFull(params),
-    staleTime: 5 * 60 * 1000, // 5분
+    staleTime: 30 * 60 * 1000, // 30분 — 일일 적재 데이터 기준
     placeholderData: (prev) => prev, // 페이지 전환 시 이전 데이터 유지
   });
 }

@@ -135,7 +135,7 @@ export function PricingModal({ onClose }: Props) {
               </div>
               <div>
                 <div className="font-bold gradient-text-primary">AntGravity Pro</div>
-                <div className="text-xs text-muted-foreground">월 ₩4,900, 언제든 취소 가능</div>
+                <div className="text-xs text-muted-foreground">월 ₩9,900, 언제든 취소 가능</div>
               </div>
             </div>
             <button
@@ -166,7 +166,7 @@ export function PricingModal({ onClose }: Props) {
               </div>
               <div className="text-sm font-semibold mb-1 text-primary">Pro</div>
               <div className="text-2xl font-bold font-mono mb-3">
-                ₩4,900<span className="text-sm font-normal text-muted-foreground">/월</span>
+                ₩9,900<span className="text-sm font-normal text-muted-foreground">/월</span>
               </div>
               <ul className="space-y-2">
                 {proFeatures.map(({ icon: Icon, label }) => (
@@ -231,7 +231,7 @@ export function PricingModal({ onClose }: Props) {
               ) : (
                 <>
                   <Zap className="w-4 h-4" />
-                  Pro 시작하기, 월 ₩4,900
+                  Pro 시작하기, 월 ₩9,900
                 </>
               )}
             </button>

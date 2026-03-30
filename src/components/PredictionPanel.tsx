@@ -165,7 +165,7 @@ export function PredictionPanel({ score, signal, symbol, factors, summary }: Pre
   return (
     <ProGate
       isPro={isPro}
-      message="AI 예측 분석은 Pro 전용 기능입니다. 월 ₩4,900으로 무제한 이용하세요."
+      message="AI 예측 분석은 Pro 전용 기능입니다. 월 ₩9,900으로 무제한 이용하세요."
       mode="blur"
     >
       {panelContent}

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 // Rule 7.9: RegExp 루프 밖 모듈 레벨로 호이스팅
 const KR_SYMBOL_RE = /^\d{6}$/;
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+const PRO_API_TIMEOUT_MS = 12_000;
 
 // 한국 종목 (6자리 숫자) → "{symbol}.KS" suffix 추가
 function toBackendSymbol(symbol: string): string {
@@ -11,10 +12,21 @@ function toBackendSymbol(symbol: string): string {
 }
 
 // ─── 공통 요청 헬퍼 ──────────────────────────────────────────────────────────
-async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
+async function apiFetch<T>(url: string, options?: RequestInit, timeoutMs?: number): Promise<T> {
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
   const targetUrl = url.startsWith("/") && API_BASE_URL ? `${API_BASE_URL}${url}` : url;
+  const controller = new AbortController();
+  const requestSignal = options?.signal;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  if (requestSignal) {
+    if (requestSignal.aborted) {
+      controller.abort();
+    } else {
+      requestSignal.addEventListener("abort", () => controller.abort(), { once: true });
+    }
+  }
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -24,7 +36,26 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
     headers["Authorization"] = `Bearer ${accessToken}`;
   }
 
-  const res = await fetch(targetUrl, { ...options, headers });
+  if (timeoutMs && timeoutMs > 0) {
+    timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(targetUrl, { ...options, headers, signal: controller.signal });
+  } catch (error) {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    if (error instanceof DOMException && error.name === "AbortError" && timeoutMs) {
+      throw new Error(`API timeout after ${timeoutMs}ms`);
+    }
+    throw error;
+  }
+
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+  }
   if (!res.ok) {
     throw new Error(`API error ${res.status}: ${res.statusText}`);
   }
@@ -436,28 +467,44 @@ export interface DividendCalendarData {
   summary: { date: string; count: number; total_amount: number }[];
 }
 
+export interface FundamentalsOverviewRankItem {
+  symbol: string;
+  name: string;
+  value: number;
+}
+
+export interface FundamentalsOverview {
+  available_count: number;
+  growth_leaders: FundamentalsOverviewRankItem[];
+  growth_laggards: FundamentalsOverviewRankItem[];
+  top_scores: FundamentalsOverviewRankItem[];
+}
+
 // ─── Pro 대시보드 API 함수 ────────────────────────────────────────────────────
 
 export async function fetchFundamentals(symbol: string): Promise<Fundamentals> {
   const backendSymbol = toBackendSymbol(symbol);
   return apiFetch<Fundamentals>(
-    `/api/stocks/${encodeURIComponent(backendSymbol)}/fundamentals`
+    `/api/stocks/${encodeURIComponent(backendSymbol)}/fundamentals`,
+    undefined,
+    PRO_API_TIMEOUT_MS,
   );
 }
 
-export async function fetchFundamentalsBatch(
-  symbols: string[]
-): Promise<Record<string, Fundamentals | null>> {
-  const backendSymbols = symbols.map(toBackendSymbol);
-  return apiFetch<Record<string, Fundamentals | null>>(
-    `/api/stocks/fundamentals/batch?symbols=${encodeURIComponent(backendSymbols.join(","))}`
+export async function fetchFundamentalsOverview(): Promise<FundamentalsOverview> {
+  return apiFetch<FundamentalsOverview>(
+    "/api/stocks/fundamentals/overview",
+    undefined,
+    PRO_API_TIMEOUT_MS,
   );
 }
 
 export async function fetchHistory(symbol: string): Promise<FinancialHistory> {
   const backendSymbol = toBackendSymbol(symbol);
   return apiFetch<FinancialHistory>(
-    `/api/stocks/${encodeURIComponent(backendSymbol)}/history`
+    `/api/stocks/${encodeURIComponent(backendSymbol)}/history`,
+    undefined,
+    PRO_API_TIMEOUT_MS,
   );
 }
 
@@ -469,11 +516,11 @@ export async function fetchScreener(
   return apiFetch<ScreenerResponse>("/api/stocks/screener", {
     method: "POST",
     body: JSON.stringify({ strategies, combination, market }),
-  });
+  }, PRO_API_TIMEOUT_MS);
 }
 
 export async function fetchSectors(): Promise<SectorsResponse> {
-  return apiFetch<SectorsResponse>("/api/market/sectors");
+  return apiFetch<SectorsResponse>("/api/market/sectors", undefined, PRO_API_TIMEOUT_MS);
 }
 
 export async function fetchDividendCalendar(
@@ -481,7 +528,9 @@ export async function fetchDividendCalendar(
   month: number
 ): Promise<DividendCalendarData> {
   return apiFetch<DividendCalendarData>(
-    `/api/stocks/dividends/calendar?year=${year}&month=${month}`
+    `/api/stocks/dividends/calendar?year=${year}&month=${month}`,
+    undefined,
+    PRO_API_TIMEOUT_MS,
   );
 }
 
@@ -525,9 +574,9 @@ export async function fetchMarketFull(params: {
   if (params.limit) searchParams.set("limit", String(params.limit));
   if (params.sort) searchParams.set("sort", params.sort);
   if (params.sector) searchParams.set("sector", params.sector);
-  return apiFetch<MarketFullResponse>(`/api/market/full?${searchParams}`);
+  return apiFetch<MarketFullResponse>(`/api/market/full?${searchParams}`, undefined, PRO_API_TIMEOUT_MS);
 }
 
 export async function fetchMarketSearch(q: string): Promise<MarketSearchResponse> {
-  return apiFetch<MarketSearchResponse>(`/api/market/full/search?q=${encodeURIComponent(q)}`);
+  return apiFetch<MarketSearchResponse>(`/api/market/full/search?q=${encodeURIComponent(q)}`, undefined, PRO_API_TIMEOUT_MS);
 }

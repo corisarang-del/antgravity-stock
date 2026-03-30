@@ -111,7 +111,7 @@ const Portfolio = () => {
             </div>
             <div className="text-center">
               <p className="font-semibold text-foreground mb-1">포트폴리오는 Pro 전용 기능입니다</p>
-              <p className="text-muted-foreground text-sm">월 <span className="font-semibold text-accent">₩4,900</span>으로 포트폴리오 클라우드 저장 및 모든 Pro 기능을 사용하세요</p>
+              <p className="text-muted-foreground text-sm">월 <span className="font-semibold text-accent">₩9,900</span>으로 포트폴리오 클라우드 저장 및 모든 Pro 기능을 사용하세요</p>
             </div>
             <button
               onClick={() => setShowPricing(true)}

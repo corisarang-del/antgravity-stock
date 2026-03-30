@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-_FULL_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=300)
+_FULL_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=1800)
+_SEARCH_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=60)
 
 # sort 방향: 숫자 컬럼은 DESC, name은 ASC
 _SORT_DESC_FIELDS = {"market_cap", "change_pct", "per"}
@@ -215,14 +216,18 @@ async def market_full_search(
     q: str = Query(..., min_length=1),
     _access=Depends(require_pro_access),
 ):
-    """종목 검색 (이름/심볼 ILIKE)"""
+    """종목 검색 (이름/심볼). 짧은 TTL 캐시로 반복 검색을 줄인다."""
+    query_lower = q.strip().lower()
+    cached = _SEARCH_CACHE.get(query_lower)
+    if cached is not None:
+        return SearchResponse(**cached)
+
     try:
         all_items = _load_all()
     except Exception as exc:
         logger.exception("market_full_search 조회 실패")
         raise HTTPException(status_code=503, detail="검색을 일시적으로 수행할 수 없습니다.") from exc
 
-    query_lower = q.lower()
     matched = [
         i for i in all_items
         if query_lower in (i.get("name") or "").lower()
@@ -230,7 +235,9 @@ async def market_full_search(
     ]
 
     results = matched[:50]
-    return SearchResponse(
+    payload = SearchResponse(
         items=[MarketStock(**i) for i in results],
         total=len(matched),
     )
+    _SEARCH_CACHE.set(query_lower, payload.model_dump())
+    return payload

@@ -182,7 +182,7 @@ def _fetch_kr_history(symbol: str) -> dict[str, Any]:
     return _fetch_us_history(symbol)
 
 
-def get_financial_history(symbol: str) -> dict[str, Any]:
+def get_cached_history(symbol: str) -> dict[str, Any] | None:
     # 1. 인메모리 TtlCache
     cached = _HISTORY_CACHE.get(symbol)
     if cached is not None:
@@ -193,6 +193,10 @@ def get_financial_history(symbol: str) -> dict[str, Any]:
     if db_data is not None:
         return _HISTORY_CACHE.set(symbol, db_data)
 
+    return None
+
+
+def fetch_and_cache_history(symbol: str) -> dict[str, Any]:
     # 3. 외부 API (dartlab / yfinance) → Supabase + TtlCache 저장
     if symbol in _get_kr_corp_codes():
         data = _fetch_kr_history(symbol)
@@ -201,3 +205,10 @@ def get_financial_history(symbol: str) -> dict[str, Any]:
 
     db_cache.write_history(symbol, data)
     return _HISTORY_CACHE.set(symbol, data)
+
+
+def get_financial_history(symbol: str) -> dict[str, Any]:
+    cached = get_cached_history(symbol)
+    if cached is not None:
+        return cached
+    return fetch_and_cache_history(symbol)

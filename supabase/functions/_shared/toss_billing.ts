@@ -1,5 +1,5 @@
 const TOSS_API_BASE = "https://api.tosspayments.com/v1";
-const BILLING_AMOUNT = Number(Deno.env.get("TOSS_BILLING_AMOUNT") ?? "4900");
+const BILLING_AMOUNT = Number(Deno.env.get("TOSS_BILLING_AMOUNT") ?? "9900");
 const BILLING_ORDER_NAME = Deno.env.get("TOSS_BILLING_ORDER_NAME") ?? "AntGravity Pro 월정액";
 
 export interface TossChargeInput {

@@ -16,7 +16,8 @@ const SectorHeatmap = lazy(() =>
   import("@/components/SectorHeatmap").then((m) => ({ default: m.SectorHeatmap }))
 );
 import { useSubscription } from "@/hooks/useSubscription";
-import { fetchFundamentals, fetchFundamentalsBatch, fetchMarketSearch, type Fundamentals } from "@/lib/apiClient";
+import { fetchFundamentals, fetchFundamentalsOverview, fetchMarketSearch } from "@/lib/apiClient";
+import { getProOverviewState } from "@/lib/proOverviewState";
 
 // 전체 종목 목록 (backend/data/pipeline.py TICKERS 동기화)
 const TICKERS: Record<string, { name: string; market: string }> = {
@@ -72,7 +73,7 @@ function TickerSearch({
     queryKey: ["tickerSearch", trimmed],
     queryFn: () => fetchMarketSearch(trimmed),
     enabled: trimmed.length >= 2,
-    staleTime: 2 * 60 * 1000,
+    staleTime: 60 * 1000,
   });
 
   const items = useMemo(() => {
@@ -149,17 +150,10 @@ function ProDashboardContent() {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [selectedSymbol, setSelectedSymbol] = useState(ALL_SYMBOLS[0] ?? "NVDA");
 
-  // 개요 탭용: 페이지 마운트 즉시 병렬 prefetch (탭 전환 대기 없음)
-  const fundQueries = useQuery({
-    queryKey: ["allFundamentals"],
-    queryFn: async () => {
-      const raw = await fetchFundamentalsBatch(ALL_SYMBOLS);
-      const map: Record<string, Fundamentals> = {};
-      for (const [sym, data] of Object.entries(raw)) {
-        if (data !== null) map[sym] = data;
-      }
-      return map;
-    },
+  // 개요 탭용: 캐시된 요약 API만 조회
+  const overviewQuery = useQuery({
+    queryKey: ["fundamentalsOverview"],
+    queryFn: fetchFundamentalsOverview,
     staleTime: 8 * 60 * 60 * 1000, // 8시간 — 재무데이터는 장중 변동 없음
   });
 
@@ -168,6 +162,13 @@ function ProDashboardContent() {
     queryFn: () => fetchFundamentals(selectedSymbol),
     staleTime: 8 * 60 * 60 * 1000,
     enabled: activeTab === "fundamentals",
+  });
+
+  const availableFundamentalsCount = overviewQuery.data?.available_count ?? 0;
+  const overviewState = getProOverviewState({
+    isLoading: overviewQuery.isLoading,
+    isError: overviewQuery.isError,
+    availableCount: availableFundamentalsCount,
   });
 
   return (
@@ -208,18 +209,28 @@ function ProDashboardContent() {
           {activeTab === "overview" && (
             <div className="space-y-6">
               {/* Top Ranking: fundamentals 로드 완료 후 표시 */}
-              {fundQueries.isLoading ? (
+              {overviewState === "loading" ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                 </div>
-              ) : fundQueries.isError ? (
+              ) : overviewState === "error" ? (
                 <div className="glass rounded-2xl border border-border p-5">
                   <p className="text-sm text-muted-foreground text-center">
                     Pro 재무 데이터를 불러올 수 없습니다.
                   </p>
                 </div>
-              ) : fundQueries.data ? (
-                <ProTopRanking fundamentalsMap={fundQueries.data} names={TICKER_NAMES} />
+              ) : overviewState === "empty" ? (
+                <div className="glass rounded-2xl border border-border p-5">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Pro 재무 데이터가 아직 준비되지 않았거나 요청 시간이 초과됐습니다.
+                  </p>
+                </div>
+              ) : overviewQuery.data ? (
+                <ProTopRanking
+                  growthLeaders={overviewQuery.data.growth_leaders}
+                  growthLaggards={overviewQuery.data.growth_laggards}
+                  topScores={overviewQuery.data.top_scores}
+                />
               ) : null}
 
               {/* 전체 시장 목록: fundamentals 기다리지 않고 즉시 표시 */}

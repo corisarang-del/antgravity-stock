@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
 import { TrendingUp, TrendingDown, Star } from "lucide-react";
-import type { Fundamentals } from "@/lib/apiClient";
+import type { FundamentalsOverviewRankItem } from "@/lib/apiClient";
 
 // Rule 6.3 rendering-hoist-jsx: 포맷터는 컴포넌트 외부로 호이스팅 (매 렌더마다 재생성 방지)
 const pctFmt = (v: number) => `${(v * 100).toFixed(1)}%`;
@@ -12,31 +11,12 @@ interface RankItem {
   symbol: string;
   name: string;
   value: number;
-  formatted: string;
 }
 
 interface Props {
-  fundamentalsMap: Record<string, Fundamentals>;
-  names: Record<string, string>;
-}
-
-function topN(
-  map: Record<string, Fundamentals>,
-  names: Record<string, string>,
-  key: keyof Fundamentals,
-  n = 5,
-  desc = true
-): RankItem[] {
-  return Object.entries(map)
-    .filter(([, f]) => f[key] !== null && f[key] !== undefined)
-    .map(([symbol, f]) => ({
-      symbol,
-      name: names[symbol] || symbol,
-      value: f[key] as number,
-      formatted: "",
-    }))
-    .toSorted((a, b) => (desc ? b.value - a.value : a.value - b.value))
-    .slice(0, n);
+  growthLeaders: FundamentalsOverviewRankItem[];
+  growthLaggards: FundamentalsOverviewRankItem[];
+  topScores: FundamentalsOverviewRankItem[];
 }
 
 function RankRow({ rank, item, formatFn }: { rank: number; item: RankItem; formatFn: (v: number) => string }) {
@@ -52,30 +32,7 @@ function RankRow({ rank, item, formatFn }: { rank: number; item: RankItem; forma
   );
 }
 
-export function ProTopRanking({ fundamentalsMap, names }: Props) {
-  // Rule 5.2 rerender-memo: fundamentalsMap/names 변경 시에만 재계산
-  const gainers = useMemo(
-    () => topN(fundamentalsMap, names, "earnings_growth", 5, true),
-    [fundamentalsMap, names]
-  );
-  const losers = useMemo(
-    () => topN(fundamentalsMap, names, "earnings_growth", 5, false),
-    [fundamentalsMap, names]
-  );
-  const topScores = useMemo(
-    () =>
-      Object.entries(fundamentalsMap)
-        .map(([symbol, f]) => ({
-          symbol,
-          name: names[symbol] || symbol,
-          value: f.score.total,
-          formatted: "",
-        }))
-        .toSorted((a, b) => b.value - a.value)
-        .slice(0, 5),
-    [fundamentalsMap, names]
-  );
-
+export function ProTopRanking({ growthLeaders, growthLaggards, topScores }: Props) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {/* 수익성장 상위 */}
@@ -85,10 +42,10 @@ export function ProTopRanking({ fundamentalsMap, names }: Props) {
           <h3 className="text-sm font-semibold">수익성장 Top 5</h3>
         </div>
         <div className="divide-y divide-border/50">
-          {gainers.map((item, i) => (
+          {growthLeaders.map((item, i) => (
             <RankRow key={item.symbol} rank={i + 1} item={item} formatFn={pctFmt} />
           ))}
-          {gainers.length === 0 && (
+          {growthLeaders.length === 0 && (
             <p className="text-xs text-muted-foreground py-4 text-center">데이터 없음</p>
           )}
         </div>
@@ -101,10 +58,10 @@ export function ProTopRanking({ fundamentalsMap, names }: Props) {
           <h3 className="text-sm font-semibold">수익성장 하위 5</h3>
         </div>
         <div className="divide-y divide-border/50">
-          {losers.map((item, i) => (
+          {growthLaggards.map((item, i) => (
             <RankRow key={item.symbol} rank={i + 1} item={item} formatFn={pctFmt} />
           ))}
-          {losers.length === 0 && (
+          {growthLaggards.length === 0 && (
             <p className="text-xs text-muted-foreground py-4 text-center">데이터 없음</p>
           )}
         </div>

@@ -101,7 +101,7 @@ export function UserMenu() {
                   className="w-full flex items-center gap-2 px-4 py-2.5 bg-primary/10 hover:bg-primary/15 transition-colors border-b border-border"
                 >
                   <Zap className="w-3.5 h-3.5 text-primary" />
-                  <span className="text-xs font-semibold text-primary">Pro로 업그레이드 · ₩4,900/월</span>
+                  <span className="text-xs font-semibold text-primary">Pro로 업그레이드 · ₩9,900/월</span>
                 </button>
               )}
 
