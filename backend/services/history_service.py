@@ -17,6 +17,10 @@ from services.yfinance_timeout_service import run_with_timeout
 _HISTORY_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=86400)
 
 
+def _build_missing_history(symbol: str) -> dict[str, Any]:
+    return {"symbol": symbol, "annual": []}
+
+
 def _get_kr_corp_codes() -> dict[str, str]:
     """fundamentals_service에서 재사용."""
     from services.fundamentals_service import _get_kr_corp_codes as _get
@@ -242,9 +246,4 @@ def get_public_financial_history(symbol: str) -> dict[str, Any]:
             if data is not None:
                 return {**data, "cache_status": "fresh", "fetched_at": None}
         return {**entry["data"], "cache_status": "stale", "fetched_at": entry["fetched_at"]}
-
-    try:
-        data = fetch_and_cache_history(symbol)
-        return {**data, "cache_status": "fresh", "fetched_at": None}
-    except Exception:
-        raise
+    return {**_build_missing_history(symbol), "cache_status": "miss", "fetched_at": None}

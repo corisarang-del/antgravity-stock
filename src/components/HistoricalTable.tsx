@@ -43,7 +43,9 @@ export function HistoricalTable({ symbol }: Props) {
 
   if (isError || !data || data.annual.length === 0) {
     const message =
-      isError && data === undefined
+      data?.cache_status === "miss"
+        ? "아직 준비된 재무 히스토리 캐시가 없어"
+        : isError && data === undefined
         ? "현재 데이터 준비 중, 잠시 후 다시 시도해줘"
         : "재무 히스토리 없음";
     return <p className="text-sm text-muted-foreground text-center py-4">{message}</p>;

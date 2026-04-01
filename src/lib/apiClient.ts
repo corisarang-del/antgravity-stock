@@ -30,6 +30,7 @@ async function apiFetch<T>(url: string, options?: RequestInit, timeoutMs?: numbe
   const targetUrl = url.startsWith("/") && API_BASE_URL ? `${API_BASE_URL}${url}` : url;
   const controller = new AbortController();
   const requestSignal = options?.signal;
+  const method = (options?.method ?? "GET").toUpperCase();
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
   if (requestSignal) {
@@ -41,9 +42,18 @@ async function apiFetch<T>(url: string, options?: RequestInit, timeoutMs?: numbe
   }
 
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...(options?.headers as Record<string, string>),
   };
+  const hasBody = options?.body !== undefined && options?.body !== null;
+  const isFormDataBody = typeof FormData !== "undefined" && options?.body instanceof FormData;
+
+  // GET/HEAD 공개 요청에는 불필요한 preflight를 만들지 않도록 Content-Type을 기본 추가하지 않는다.
+  if (hasBody && !isFormDataBody && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+  if ((method === "GET" || method === "HEAD") && headers["Content-Type"] === "application/json") {
+    delete headers["Content-Type"];
+  }
   if (accessToken) {
     headers["Authorization"] = `Bearer ${accessToken}`;
   }
@@ -402,7 +412,7 @@ export interface InvestmentScore {
 export interface Fundamentals {
   symbol: string;
   source: string;
-  cache_status?: "fresh" | "stale";
+  cache_status?: "fresh" | "stale" | "miss";
   fetched_at?: string | null;
   roe: number | null;
   gross_margin: number | null;
@@ -438,7 +448,7 @@ export interface HistoryRow {
 
 export interface FinancialHistory {
   symbol: string;
-  cache_status?: "fresh" | "stale";
+  cache_status?: "fresh" | "stale" | "miss";
   fetched_at?: string | null;
   annual: HistoryRow[];
 }

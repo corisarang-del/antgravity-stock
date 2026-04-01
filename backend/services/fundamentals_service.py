@@ -427,6 +427,34 @@ def _kr_fallback_via_yfinance(symbol: str) -> dict[str, Any]:
     }
 
 
+def _build_missing_fundamentals(symbol: str) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "symbol": symbol,
+        "source": "cache-miss",
+        "roe": None,
+        "gross_margin": None,
+        "operating_margin": None,
+        "net_margin": None,
+        "debt_to_equity": None,
+        "current_ratio": None,
+        "trailing_pe": None,
+        "price_to_book": None,
+        "peg_ratio": None,
+        "ev_to_ebitda": None,
+        "earnings_growth": None,
+        "revenue_growth": None,
+        "market_cap": None,
+        "dividend_yield": None,
+        "fifty_two_week_high": None,
+        "fifty_two_week_low": None,
+        "sector": None,
+        "industry": None,
+        "fcf_yield": None,
+    }
+    data["score"] = _build_score(data)
+    return data
+
+
 # ──────────────────────────────────────────────
 # Public API
 # ──────────────────────────────────────────────
@@ -504,9 +532,4 @@ def get_public_fundamentals(symbol: str) -> dict[str, Any]:
             if data is not None:
                 return {**data, "cache_status": "fresh", "fetched_at": None}
         return {**entry["data"], "cache_status": "stale", "fetched_at": entry["fetched_at"]}
-
-    try:
-        data = fetch_and_cache_fundamentals(symbol)
-        return {**data, "cache_status": "fresh", "fetched_at": None}
-    except Exception:
-        raise
+    return {**_build_missing_fundamentals(symbol), "cache_status": "miss", "fetched_at": None}

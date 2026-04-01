@@ -314,6 +314,10 @@ export function StockDetailPanel({ symbol }: Props) {
                         <div className="text-xs px-3 py-2 rounded-lg border bg-warning/10 text-warning border-warning/20 mb-4">
                           전일 캐시 기준 데이터야. 최신 수집이 지연되면 이렇게 보여줘.
                         </div>
+                      ) : fundamentals.cache_status === "miss" ? (
+                        <div className="text-xs px-3 py-2 rounded-lg border bg-secondary/60 text-muted-foreground border-border mb-4">
+                          아직 준비된 재무 캐시가 없어서 항목이 비어 있어. 다음 수집 후 채워질 거야.
+                        </div>
                       ) : null}
                       <FundamentalsGrid data={fundamentals} />
                     </div>
