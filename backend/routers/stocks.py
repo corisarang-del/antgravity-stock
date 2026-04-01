@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import math
 
 import pandas as pd
 import yfinance as yf
@@ -92,6 +93,50 @@ def _rows_from_training_sample(symbol: str) -> list[dict]:
     ]
 
 
+def _to_finite_float(value) -> float | None:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    return numeric if math.isfinite(numeric) else None
+
+
+def _to_finite_int(value) -> int | None:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(numeric):
+        return None
+    return int(numeric)
+
+
+def _normalize_ohlcv_rows(rows: list[dict]) -> list[dict]:
+    normalized: list[dict] = []
+    for row in rows:
+        date = row.get("date")
+        open_price = _to_finite_float(row.get("open"))
+        high_price = _to_finite_float(row.get("high"))
+        low_price = _to_finite_float(row.get("low"))
+        close_price = _to_finite_float(row.get("close"))
+        volume = _to_finite_int(row.get("volume"))
+
+        if not date or None in (open_price, high_price, low_price, close_price, volume):
+            continue
+
+        normalized.append(
+            {
+                "date": str(date),
+                "open": open_price,
+                "high": high_price,
+                "low": low_price,
+                "close": close_price,
+                "volume": volume,
+            }
+        )
+    return normalized
+
+
 def _load_stock_payload(symbol: str, period: str) -> dict:
     cache_key = f"{symbol}:{period}"
     cached_payload = STOCK_RESPONSE_CACHE.get(cache_key)
@@ -113,15 +158,15 @@ def _load_stock_payload(symbol: str, period: str) -> dict:
                 .order("date")
                 .execute()
             )
-            data = rows.data or []
+            data = _normalize_ohlcv_rows(rows.data or [])
         except Exception:
             data = []
 
     if not data:
-        data = _rows_from_yfinance(symbol, period)
+        data = _normalize_ohlcv_rows(_rows_from_yfinance(symbol, period))
 
     if not data:
-        data = _rows_from_training_sample(symbol)
+        data = _normalize_ohlcv_rows(_rows_from_training_sample(symbol))
 
     payload = {
         "symbol": symbol,
