@@ -107,6 +107,10 @@ _FUND_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=28800)
 _PUBLIC_REQUIRED_FIELDS = ("trailing_pe", "price_to_book", "peg_ratio")
 
 
+def is_kr_symbol(symbol: str) -> bool:
+    return symbol.endswith(".KS") or symbol.endswith(".KQ")
+
+
 # ──────────────────────────────────────────────
 # Investment Score 계산
 # ──────────────────────────────────────────────
@@ -455,6 +459,29 @@ def _build_missing_fundamentals(symbol: str) -> dict[str, Any]:
     return data
 
 
+def has_meaningful_fundamentals(data: dict[str, Any]) -> bool:
+    meaningful_fields = (
+        "roe",
+        "gross_margin",
+        "operating_margin",
+        "net_margin",
+        "debt_to_equity",
+        "current_ratio",
+        "trailing_pe",
+        "price_to_book",
+        "peg_ratio",
+        "ev_to_ebitda",
+        "earnings_growth",
+        "revenue_growth",
+        "market_cap",
+        "dividend_yield",
+        "fifty_two_week_high",
+        "fifty_two_week_low",
+        "fcf_yield",
+    )
+    return any(data.get(field) is not None for field in meaningful_fields)
+
+
 # ──────────────────────────────────────────────
 # Public API
 # ──────────────────────────────────────────────
@@ -496,10 +523,13 @@ def get_cached_fundamentals_bulk(symbols: list[str]) -> dict[str, dict[str, Any]
 
 def fetch_and_cache_fundamentals(symbol: str) -> dict[str, Any]:
     # 3. 외부 API (dartlab / yfinance) → Supabase + TtlCache 저장
-    if symbol in _get_kr_corp_codes():
+    if is_kr_symbol(symbol):
         data = _fetch_kr_fundamentals(symbol)
     else:
         data = _fetch_us_fundamentals(symbol)
+
+    if not has_meaningful_fundamentals(data):
+        raise ValueError(f"fundamentals payload is empty for {symbol}")
 
     db_cache.write_fundamentals(symbol, data)
     return _FUND_CACHE.set(symbol, data)

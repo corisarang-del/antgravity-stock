@@ -33,8 +33,9 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 # 환경변수 로드 후 임포트
-from services.fundamentals_service import _fetch_kr_fundamentals, _fetch_us_fundamentals, _get_kr_corp_codes  # noqa: E402
-from services.history_service import _fetch_kr_history, _fetch_us_history  # noqa: E402
+from services.fundamentals_service import _fetch_kr_fundamentals, _fetch_us_fundamentals  # noqa: E402
+from services.fundamentals_service import has_meaningful_fundamentals, is_kr_symbol  # noqa: E402
+from services.history_service import _fetch_kr_history, _fetch_us_history, has_meaningful_history  # noqa: E402
 import services.financials_cache_service as db_cache  # noqa: E402
 
 
@@ -46,27 +47,31 @@ def _get_all_symbols() -> dict[str, str]:
     if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
         return {}
 
-    sb = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    try:
+        sb = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
-    # 페이지네이션으로 전체 조회
-    all_rows: list[dict] = []
-    page_size = 1000
-    offset = 0
+        # 페이지네이션으로 전체 조회
+        all_rows: list[dict] = []
+        page_size = 1000
+        offset = 0
 
-    while True:
-        res = (
-            sb.table("ticker_universe")
-            .select("symbol, name")
-            .range(offset, offset + page_size - 1)
-            .execute()
-        )
-        rows = res.data or []
-        all_rows.extend(rows)
-        if len(rows) < page_size:
-            break
-        offset += page_size
+        while True:
+            res = (
+                sb.table("ticker_universe")
+                .select("symbol, name")
+                .range(offset, offset + page_size - 1)
+                .execute()
+            )
+            rows = res.data or []
+            all_rows.extend(rows)
+            if len(rows) < page_size:
+                break
+            offset += page_size
 
-    return {r["symbol"]: r.get("name", "") for r in all_rows}
+        return {r["symbol"]: r.get("name", "") for r in all_rows}
+    except Exception as exc:
+        print(f"[daily_refresh] ticker_universe 조회 실패, fallback 사용: {exc}")
+        return {}
 
 
 # 레거시: 하드코딩된 핵심 종목 (fallback용)
@@ -91,15 +96,13 @@ _CORE_TICKERS = {
 
 
 def _fetch_fundamentals(symbol: str) -> dict:
-    kr_codes = _get_kr_corp_codes()
-    if symbol in kr_codes:
+    if is_kr_symbol(symbol):
         return _fetch_kr_fundamentals(symbol)
     return _fetch_us_fundamentals(symbol)
 
 
 def _fetch_history(symbol: str) -> dict:
-    kr_codes = _get_kr_corp_codes()
-    if symbol in kr_codes:
+    if is_kr_symbol(symbol):
         return _fetch_kr_history(symbol)
     return _fetch_us_history(symbol)
 
@@ -110,15 +113,21 @@ def refresh_symbol(symbol: str, name: str) -> tuple[bool, bool]:
 
     try:
         fund_data = _fetch_fundamentals(symbol)
-        db_cache.write_fundamentals(symbol, fund_data)
-        fund_ok = True
+        if has_meaningful_fundamentals(fund_data):
+            db_cache.write_fundamentals(symbol, fund_data)
+            fund_ok = True
+        else:
+            print(f"  [FAIL] fundamentals {symbol}: empty payload")
     except Exception as e:
         print(f"  [FAIL] fundamentals {symbol}: {e}")
 
     try:
         hist_data = _fetch_history(symbol)
-        db_cache.write_history(symbol, hist_data)
-        hist_ok = True
+        if has_meaningful_history(hist_data):
+            db_cache.write_history(symbol, hist_data)
+            hist_ok = True
+        else:
+            print(f"  [FAIL] history {symbol}: empty payload")
     except Exception as e:
         print(f"  [FAIL] history {symbol}: {e}")
 
@@ -177,12 +186,12 @@ def main(symbols: list[str] | None = None, parallel: bool = True) -> None:
         parallel: 병렬 처리 여부 (기본 True)
     """
     # 전체 종목 로드 (ticker_universe에서)
-    all_tickers = _get_all_symbols() or _CORE_TICKERS
+    all_tickers = _CORE_TICKERS | _get_all_symbols()
 
     if symbols:
-        targets = {s: all_tickers.get(s, s) for s in symbols if s in all_tickers}
+        targets = {s: all_tickers.get(s, s) for s in symbols}
     else:
-        targets = all_tickers
+        targets = all_tickers or _CORE_TICKERS
 
     if not targets:
         print("[daily_refresh] 대상 심볼 없음")

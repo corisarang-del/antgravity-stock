@@ -12,6 +12,7 @@ import yfinance as yf
 
 from services.runtime_cache import TtlCache
 import services.financials_cache_service as db_cache
+from services.fundamentals_service import is_kr_symbol
 from services.yfinance_timeout_service import run_with_timeout
 
 _HISTORY_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=86400)
@@ -19,6 +20,10 @@ _HISTORY_CACHE: TtlCache[dict] = TtlCache(ttl_seconds=86400)
 
 def _build_missing_history(symbol: str) -> dict[str, Any]:
     return {"symbol": symbol, "annual": []}
+
+
+def has_meaningful_history(data: dict[str, Any]) -> bool:
+    return bool(data.get("annual"))
 
 
 def _get_kr_corp_codes() -> dict[str, str]:
@@ -209,10 +214,13 @@ def get_cached_history(symbol: str) -> dict[str, Any] | None:
 
 def fetch_and_cache_history(symbol: str) -> dict[str, Any]:
     # 3. 외부 API (dartlab / yfinance) → Supabase + TtlCache 저장
-    if symbol in _get_kr_corp_codes():
+    if is_kr_symbol(symbol):
         data = _fetch_kr_history(symbol)
     else:
         data = _fetch_us_history(symbol)
+
+    if not has_meaningful_history(data):
+        raise ValueError(f"history payload is empty for {symbol}")
 
     db_cache.write_history(symbol, data)
     return _HISTORY_CACHE.set(symbol, data)
